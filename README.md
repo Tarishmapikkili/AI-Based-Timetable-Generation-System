@@ -15,17 +15,17 @@ To develop a software-based, AI-assisted timetable generation system aligned wit
   - Timetable output generation
 
 # Technologies
--Frontend: HTML, CSS, JavaScript, React.js
--Backend: Python (FastAPI)
--Scheduling Logic: Constraint-based optimization
--Tools: VS Code, Git
+- Frontend: HTML, CSS, JavaScript, React.js
+- Backend: Python (FastAPI)
+- Scheduling Logic: Constraint-based optimization
+- Tools: VS Code, Git
 # Output
--Automatically generated, conflict-free academic timetables
--Program-wise and semester-wise schedule views
--Reduced manual effort in timetable preparation
+- Automatically generated, conflict-free academic timetables
+- Program-wise and semester-wise schedule views
+- Reduced manual effort in timetable preparation
 # SDG Mapping
--SDG 4 – Quality Education
--SDG 9 – Industry, Innovation and Infrastructure
--SDG 16 – Peace, Justice and Strong Institutions
+- SDG 4 – Quality Education
+- SDG 9 – Industry, Innovation and Infrastructure
+- SDG 16 – Peace, Justice and Strong Institutions
 
 

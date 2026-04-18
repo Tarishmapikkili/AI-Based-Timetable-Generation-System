@@ -1,13 +1,42 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 import sqlite3
+import hashlib
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 
 app = FastAPI()
+
+def hash_password(password: str) -> str:
+    """Simple SHA-256 hash. For production use bcrypt."""
+    return hashlib.sha256(password.encode()).hexdigest()
+
 def init_db():
     conn = sqlite3.connect("timetable.db")
     cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            role TEXT NOT NULL,          -- 'admin' | 'hod' | 'faculty' | 'student'
+            name TEXT NOT NULL,
+            linked_id TEXT               -- faculty_id or student program+semester info
+        )
+    """)
+    cursor.execute("SELECT COUNT(*) FROM users")
+    if cursor.fetchone()[0] == 0:
+        seed_users = [
+            ("admin",    hash_password("admin123"),  "admin",   "Administrator", None),
+            ("hod",      hash_password("hod123"),    "hod",     "Dr. HOD / Principal", None),
+            ("faculty1", hash_password("fac123"),    "faculty", "Dr. Faculty One", "FAC001"),
+            ("student1", hash_password("stu123"),    "student", "Student One", "B.Ed.|1"),
+        ]
+        cursor.executemany(
+            "INSERT INTO users (username, password_hash, role, name, linked_id) VALUES (?,?,?,?,?)",
+            seed_users
+        )
+
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS faculty (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -22,6 +51,8 @@ def init_db():
             cursor.execute(f"ALTER TABLE faculty ADD COLUMN {col} TEXT DEFAULT {defval}")
         except:
             pass
+
+    
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS courses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -38,6 +69,7 @@ def init_db():
             cursor.execute(f"ALTER TABLE courses ADD COLUMN {col} INTEGER DEFAULT {defval}")
         except:
             pass
+
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS rooms (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,6 +77,7 @@ def init_db():
             room_type TEXT
         )
     """)
+
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS course_faculty (
             course_code TEXT,
@@ -65,6 +98,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+class NewUserRequest(BaseModel):
+    username: str
+    password: str
+    role: str
+    name: str
+    linked_id: Optional[str] = None
 
 class Course(BaseModel):
     code: str
@@ -90,11 +134,77 @@ class TimetableRequest(BaseModel):
     rooms: List[Room]
     program: str
     semester: str
+
+LAB_TYPES = {"laboratory", "lab", "computer lab", "science lab"}
+
+def is_lab_room(room: Room) -> bool:
+    return room.type.strip().lower() in LAB_TYPES
+
+def is_classroom(room: Room) -> bool:
+    return not is_lab_room(room)
+
+@app.post("/login")
+def login(data: LoginRequest):
+    conn = sqlite3.connect("timetable.db")
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT username, role, name, linked_id FROM users WHERE username=? AND password_hash=?",
+        (data.username, hash_password(data.password))
+    )
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        raise HTTPException(status_code=401, detail="Invalid username or password.")
+
+    return {
+        "username":  row[0],
+        "role":      row[1],   
+        "name":      row[2],
+        "linked_id": row[3]    
+    }
+
+@app.get("/users")
+def get_users():
+    conn = sqlite3.connect("timetable.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, username, role, name, linked_id FROM users")
+    rows = cursor.fetchall()
+    conn.close()
+    return [{"id":r[0], "username":r[1], "role":r[2], "name":r[3], "linked_id":r[4]} for r in rows]
+
+@app.post("/add-user")
+def add_user(data: NewUserRequest):
+    conn = sqlite3.connect("timetable.db")
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "INSERT INTO users (username, password_hash, role, name, linked_id) VALUES (?,?,?,?,?)",
+            (data.username, hash_password(data.password), data.role, data.name, data.linked_id)
+        )
+        conn.commit()
+    except sqlite3.IntegrityError:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Username already exists.")
+    conn.close()
+    return {"message": "User created"}
+
+@app.delete("/delete-user/{user_id}")
+def delete_user(user_id: int):
+    conn = sqlite3.connect("timetable.db")
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM users WHERE id=?", (user_id,))
+    conn.commit()
+    conn.close()
+    return {"message": "User deleted"}
+
 @app.post("/add-faculty")
 def add_faculty(data: dict):
     conn = sqlite3.connect("timetable.db")
     cursor = conn.cursor()
-    available_days = ",".join(data.get("availableDays", ["Monday","Tuesday","Wednesday","Thursday","Friday"]))
+    available_days = ",".join(
+        data.get("availableDays", ["Monday","Tuesday","Wednesday","Thursday","Friday"])
+    )
     cursor.execute(
         """INSERT INTO faculty (faculty_id, name, max_hours, available_days)
            VALUES (?, ?, ?, ?)
@@ -117,10 +227,9 @@ def get_faculty():
     conn.close()
     return [
         {
-            "id": r[0],
-            "name": r[1],
-            "maxHours": r[2],
-            "availableDays": r[3].split(",") if r[3] else ["Monday","Tuesday","Wednesday","Thursday","Friday"]
+            "id": r[0], "name": r[1], "maxHours": r[2],
+            "availableDays": r[3].split(",") if r[3] else
+                             ["Monday","Tuesday","Wednesday","Thursday","Friday"]
         }
         for r in rows
     ]
@@ -133,8 +242,6 @@ def delete_faculty(faculty_id: str):
     conn.commit()
     conn.close()
     return {"message": "Faculty deleted"}
-
-# ================= COURSE APIs =================
 
 @app.post("/add-course")
 def add_course(data: dict):
@@ -150,9 +257,7 @@ def add_course(data: dict):
              theory_hours=excluded.theory_hours,
              practical_hours=excluded.practical_hours""",
         (
-            data["code"],
-            data["name"],
-            data["program"],
+            data["code"], data["name"], data["program"],
             data.get("semester", "1"),
             int(data.get("theoryHours", 3)),
             int(data.get("practicalHours", 0))
@@ -166,15 +271,14 @@ def add_course(data: dict):
 def get_courses():
     conn = sqlite3.connect("timetable.db")
     cursor = conn.cursor()
-    cursor.execute("SELECT course_code, course_name, program, semester, theory_hours, practical_hours FROM courses")
+    cursor.execute(
+        "SELECT course_code, course_name, program, semester, theory_hours, practical_hours FROM courses"
+    )
     rows = cursor.fetchall()
     conn.close()
     return [
         {
-            "code": r[0],
-            "name": r[1],
-            "program": r[2],
-            "semester": r[3],
+            "code": r[0], "name": r[1], "program": r[2], "semester": r[3],
             "theoryHours": r[4] if r[4] is not None else 3,
             "practicalHours": r[5] if r[5] is not None else 0
         }
@@ -212,8 +316,6 @@ def get_course_faculty(course_code: str):
     conn.close()
     return {"faculty_ids": [r[0] for r in rows]}
 
-# ================= ROOM APIs =================
-
 @app.post("/add-room")
 def add_room(data: dict):
     conn = sqlite3.connect("timetable.db")
@@ -245,28 +347,40 @@ def delete_room(room_number: str):
     conn.close()
     return {"message": "Room deleted"}
 
-# ================= TIMETABLE GENERATION =================
-
 @app.post("/generate")
 def generate_timetable(data: TimetableRequest):
 
     ALL_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+
     THEORY_SLOTS = [
         "09:00-09:50",
         "09:50-10:40",
-        "10:50-11:40",   
+        "10:50-11:40",
         "11:40-12:30",
-        "13:30-14:20",   
+        "13:30-14:20",
         "14:20-15:10",
-        "15:20-16:10"    
+        "15:20-16:10"
     ]
 
-
     LAB_PAIRS = [(0, 1), (2, 3), (4, 5)]
+
+    lab_rooms   = [r for r in data.rooms if is_lab_room(r)]
+    class_rooms = [r for r in data.rooms if is_classroom(r)]
+
+    warnings = []
+
+    if not lab_rooms:
+        warnings.append(
+            "No Laboratory rooms found. Add rooms with type 'Laboratory' for practical courses."
+        )
+    if not class_rooms:
+        warnings.append(
+            "No Classroom rooms found. Add rooms with type 'Classroom' for theory courses."
+        )
+
     timetable = {day: {slot: None for slot in THEORY_SLOTS} for day in ALL_DAYS}
     faculty_map = {f.id: f for f in data.faculty}
-    conn = sqlite3.connect("timetable.db")
-    cursor = conn.cursor()
+
     filtered_courses = [
         c for c in data.courses
         if (data.program == "All Programs" or c.program == data.program)
@@ -274,158 +388,152 @@ def generate_timetable(data: TimetableRequest):
     ]
 
     if not filtered_courses:
-        conn.close()
-        return {"timetable": timetable, "warnings": ["No courses found for selected program/semester"]}
+        return {
+            "timetable": timetable,
+            "warnings": warnings + ["No courses found for the selected program/semester."]
+        }
 
-    warnings = []
-    course_faculty_map = {}
+    conn = sqlite3.connect("timetable.db")
+    cursor = conn.cursor()
+
+    course_faculty_map: dict = {}
     for course in filtered_courses:
-        cursor.execute("SELECT faculty_id FROM course_faculty WHERE course_code=?", (course.code,))
-        fids = [row[0] for row in cursor.fetchall()]
+        cursor.execute(
+            "SELECT faculty_id FROM course_faculty WHERE course_code=?", (course.code,)
+        )
+        fids     = [row[0] for row in cursor.fetchall()]
         assigned = [faculty_map[fid] for fid in fids if fid in faculty_map]
         if assigned:
             course_faculty_map[course.code] = assigned[0]
         else:
-            warnings.append(f"No faculty assigned to {course.code} — skipped")
+            warnings.append(f"No faculty assigned to {course.code} — skipped.")
 
     conn.close()
-    faculty_hours = {f.id: 0 for f in data.faculty}
-    faculty_busy = {f.id: {day: set() for day in ALL_DAYS} for f in data.faculty}
 
-    lab_rooms = [r for r in data.rooms if r.type.lower() in ("laboratory", "lab")]
-    class_rooms = [r for r in data.rooms if r.type.lower() not in ("laboratory", "lab")]
-    if not class_rooms:
-        class_rooms = data.rooms  
-    if not lab_rooms:
-        lab_rooms = data.rooms   
+    faculty_hours: dict = {f.id: 0 for f in data.faculty}
+    faculty_busy:  dict = {f.id: {day: set() for day in ALL_DAYS} for f in data.faculty}
+    room_busy:     dict = {r.number: {day: set() for day in ALL_DAYS} for r in data.rooms}
 
-    room_busy = {}  
-    for r in data.rooms:
-        room_busy[r.number] = {day: set() for day in ALL_DAYS}
-
-    def find_free_room(rooms_list, day, slot):
-        for r in rooms_list:
-            if slot not in room_busy[r.number][day]:
-                return r
+    def pick_room(pool: list, day: str, slot: str, extra_slot: str = None):
+        sorted_pool = sorted(pool, key=lambda r: len(room_busy[r.number][day]))
+        for r in sorted_pool:
+            busy = room_busy[r.number][day]
+            if slot in busy:
+                continue
+            if extra_slot and extra_slot in busy:
+                continue
+            return r
         return None
 
-    def place_slot(day, slot, course, fac, room, slot_type):
+    def place(day, slot, course, fac, room, kind):
         timetable[day][slot] = {
-            "course": course.code,
-            "name": course.name,
-            "faculty": fac.name,
-            "room": room.number,
-            "type": slot_type
+            "course": course.code, "name": course.name,
+            "faculty": fac.name,  "room": room.number, "type": kind
         }
         faculty_busy[fac.id][day].add(slot)
         room_busy[room.number][day].add(slot)
         faculty_hours[fac.id] += 1
 
-    
     for course in filtered_courses:
         if course.practicalHours <= 0:
             continue
-
         fac = course_faculty_map.get(course.code)
-        if not fac:
+        if not fac or not lab_rooms:
+            if not lab_rooms:
+                warnings.append(f"Skipped lab for {course.code}: no Laboratory rooms.")
             continue
 
-        lab_sessions_needed = course.practicalHours // 2  
+        sessions_needed = max(1, course.practicalHours // 2)
+        placed_labs     = 0
+        fac_days        = list(getattr(fac, "availableDays", None) or ALL_DAYS)
 
-        placed_labs = 0
         for day in ALL_DAYS:
-            if placed_labs >= lab_sessions_needed:
+            if placed_labs >= sessions_needed:
                 break
-            if hasattr(fac, 'availableDays') and fac.availableDays and day not in fac.availableDays:
+            if day not in fac_days:
                 continue
             if faculty_hours[fac.id] + 2 > fac.maxHours:
-                warnings.append(f"{fac.name} reached max hours — lab for {course.code} skipped")
+                warnings.append(f"{fac.name} hit max hours — lab for {course.code} skipped.")
                 break
 
-            for (s1_idx, s2_idx) in LAB_PAIRS:
-                slot1 = THEORY_SLOTS[s1_idx]
-                slot2 = THEORY_SLOTS[s2_idx]
-                if slot1 in faculty_busy[fac.id][day] or slot2 in faculty_busy[fac.id][day]:
+            for (i1, i2) in LAB_PAIRS:
+                s1, s2 = THEORY_SLOTS[i1], THEORY_SLOTS[i2]
+                if s1 in faculty_busy[fac.id][day] or s2 in faculty_busy[fac.id][day]:
                     continue
-                if timetable[day][slot1] is not None or timetable[day][slot2] is not None:
+                if timetable[day][s1] or timetable[day][s2]:
                     continue
-
-                room = find_free_room(lab_rooms, day, slot1)
-                if room is None or slot2 in room_busy[room.number][day]:
+                room = pick_room(lab_rooms, day, s1, extra_slot=s2)
+                if room is None:
                     continue
-
-                place_slot(day, slot1, course, fac, room, "Lab")
-                place_slot(day, slot2, course, fac, room, "Lab (contd.)")
+                place(day, s1, course, fac, room, "Lab")
+                place(day, s2, course, fac, room, "Lab (contd.)")
                 placed_labs += 1
                 break
 
-        if placed_labs < lab_sessions_needed:
-            warnings.append(f"Could only place {placed_labs}/{lab_sessions_needed} lab sessions for {course.code}")
-
+        if placed_labs < sessions_needed:
+            warnings.append(
+                f"Only placed {placed_labs}/{sessions_needed} lab session(s) for {course.code}."
+            )
     for course in filtered_courses:
         if course.theoryHours <= 0:
             continue
-
         fac = course_faculty_map.get(course.code)
-        if not fac:
+        if not fac or not class_rooms:
+            if not class_rooms:
+                warnings.append(f"Skipped theory for {course.code}: no Classroom rooms.")
             continue
 
+        fac_days       = [d for d in ALL_DAYS if d in (getattr(fac, "availableDays", None) or ALL_DAYS)]
         hours_to_place = course.theoryHours
-        placed = 0
-        day_order = list(ALL_DAYS)
+        placed         = 0
 
-        for attempt in range(len(ALL_DAYS) * len(THEORY_SLOTS)):
-            if placed >= hours_to_place:
+        if not fac_days:
+            warnings.append(f"{fac.name} has no available days — theory for {course.code} skipped.")
+            continue
+
+        day_cycle = list(fac_days)
+
+        for _ in range(len(fac_days) * len(THEORY_SLOTS) * 3):
+            if placed >= hours_to_place or not day_cycle:
                 break
 
-            day = day_order[placed % len(day_order)]
+            day = day_cycle[0]
 
-            
-            if hasattr(fac, 'availableDays') and fac.availableDays and day not in fac.availableDays:
-                
-                day_order = [d for d in day_order if d != day]
-                if not day_order:
-                    break
-                continue
-
-            
             if faculty_hours[fac.id] + 1 > fac.maxHours:
-                warnings.append(f"{fac.name} reached max hours — theory slot for {course.code} skipped")
+                warnings.append(f"{fac.name} hit max hours — theory for {course.code} skipped.")
                 break
 
-            
-            course_already_today = any(
-                timetable[day][sl] and timetable[day][sl]["course"] == course.code
+            already_today = any(
+                timetable[day][sl] is not None
+                and timetable[day][sl]["course"] == course.code
                 and timetable[day][sl]["type"] == "Theory"
                 for sl in THEORY_SLOTS
             )
-            if course_already_today:
-                
-                day_order = day_order[1:] + [day_order[0]]
+            if already_today:
+                day_cycle = day_cycle[1:] + [day_cycle[0]]
                 continue
 
-            
             slot_placed = False
             for slot in THEORY_SLOTS:
                 if timetable[day][slot] is not None:
                     continue
                 if slot in faculty_busy[fac.id][day]:
                     continue
-
-                room = find_free_room(class_rooms, day, slot)
+                room = pick_room(class_rooms, day, slot)
                 if room is None:
                     continue
-
-                place_slot(day, slot, course, fac, room, "Theory")
+                place(day, slot, course, fac, room, "Theory")
                 placed += 1
                 slot_placed = True
-                day_order = day_order[1:] + [day_order[0]]
+                day_cycle = day_cycle[1:] + [day_cycle[0]]
                 break
 
             if not slot_placed:
-                day_order = day_order[1:] + [day_order[0]]
+                day_cycle = day_cycle[1:] + [day_cycle[0]]
 
         if placed < hours_to_place:
-            warnings.append(f"Could only place {placed}/{hours_to_place} theory slots for {course.code}")
+            warnings.append(
+                f"Only placed {placed}/{hours_to_place} theory slot(s) for {course.code}."
+            )
 
     return {"timetable": timetable, "warnings": warnings}

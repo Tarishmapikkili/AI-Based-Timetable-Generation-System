@@ -1,19 +1,359 @@
 console.log("✅ app.js loaded");
-let courses = [];
-let faculty = [];
-let rooms = [];
+
+
+let courses  = [];
+let faculty  = [];
+let rooms    = [];
 let students = [];
+let users    = [];
 let generatedTimetable = null;
 
 const API = "http://127.0.0.1:8000";
 
 
-function updateDashboard() {
-    document.getElementById("totalCourses").innerText = courses.length;
-    document.getElementById("totalFaculty").innerText = faculty.length;
-    document.getElementById("totalStudents").innerText = students.length;
-    document.getElementById("totalRooms").innerText = rooms.length;
+let currentUser = null; 
+
+function getSession() {
+    const raw = sessionStorage.getItem("user");
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch { return null; }
 }
+
+function requireLogin() {
+    currentUser = getSession();
+    if (!currentUser) {
+        window.location.href = "login.html";
+        return false;
+    }
+    return true;
+}
+
+function logout() {
+    sessionStorage.removeItem("user");
+    window.location.href = "login.html";
+}
+
+
+
+const ROLE_TABS = {
+    admin:   ["dashboard","courses","faculty","students","infrastructure","generate","view","userMgmt"],
+    hod:     ["dashboard","courses","faculty","infrastructure","view"],
+    faculty: ["view"],
+    student: ["view"]
+};
+
+const WRITE_ROLES = ["admin"]; 
+
+function canWrite() {
+    return currentUser && WRITE_ROLES.includes(currentUser.role);
+}
+
+
+function applyRoleUI() {
+    const role      = currentUser.role;
+    const allowedTabs = ROLE_TABS[role] || ["view"];
+
+   
+    const tabMap = {
+        dashboard:      0,
+        courses:        1,
+        faculty:        2,
+        students:       3,
+        infrastructure: 4,
+        generate:       5,
+        view:           6,
+        userMgmt:       7  
+    };
+
+    document.querySelectorAll(".nav-tab").forEach((tab, idx) => {
+        const sectionIds = Object.keys(tabMap);
+        const sectionId  = sectionIds[idx];
+        tab.style.display = allowedTabs.includes(sectionId) ? "" : "none";
+    });
+
+   
+    if (!canWrite()) {
+        document.querySelectorAll(".btn-primary, .btn-success").forEach(btn => {
+            
+            if (btn.textContent.includes("Export") || btn.textContent.includes("📄") || btn.textContent.includes("📊")) return;
+            btn.style.display = "none";
+        });
+        
+        const assignCard = document.querySelector("#courses .card .card");
+        if (assignCard) assignCard.style.display = "none";
+    }
+
+   
+    renderUserBadge();
+
+    
+    if (role === "faculty" && currentUser.linked_id) {
+      
+    }
+
+    
+    if (role === "student" && currentUser.linked_id) {
+        const parts = currentUser.linked_id.split("|");
+        if (parts.length === 2) {
+            const filterProg = document.getElementById("filterProgram");
+            const filterSem  = document.getElementById("filterSemester");
+            if (filterProg) filterProg.value = parts[0];
+            if (filterSem)  filterSem.value  = parts[1];
+        }
+    }
+}
+
+function renderUserBadge() {
+    
+    let bar = document.getElementById("userBar");
+    if (!bar) {
+        bar = document.createElement("div");
+        bar.id = "userBar";
+        bar.style.cssText = `
+            display:flex; justify-content:flex-end; align-items:center;
+            gap:1rem; padding:0.75rem 2rem;
+            background: rgba(255,255,255,0.06);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            font-size:0.875rem; color:rgba(255,255,255,0.85);
+            position: relative; z-index: 10;
+        `;
+        const header = document.querySelector(".header");
+        if (header) header.insertAdjacentElement("afterend", bar);
+    }
+
+    const roleColors = {
+        admin:   "#ea5455",
+        hod:     "#f7b731",
+        faculty: "#26de81",
+        student: "#45aaf2"
+    };
+    const roleEmoji = { admin:"🛡️", hod:"🎓", faculty:"👨‍🏫", student:"📚" };
+    const col = roleColors[currentUser.role] || "#ccc";
+
+    bar.innerHTML = `
+        <span>
+            ${roleEmoji[currentUser.role] || "👤"}
+            <strong>${currentUser.name}</strong>
+            &nbsp;
+            <span style="background:${col};color:white;padding:2px 10px;border-radius:20px;font-size:0.75rem;font-weight:700;text-transform:uppercase">
+                ${currentUser.role}
+            </span>
+        </span>
+        <button onclick="logout()" style="
+            background:rgba(234,84,85,0.15); border:1px solid rgba(234,84,85,0.4);
+            color:#ff9a9a; padding:0.35rem 1rem; border-radius:8px;
+            cursor:pointer; font-size:0.8rem; font-weight:600;
+            font-family:'DM Sans',sans-serif; transition:all 0.2s;
+        " onmouseover="this.style.background='rgba(234,84,85,0.3)'"
+           onmouseout="this.style.background='rgba(234,84,85,0.15)'">
+            Sign Out
+        </button>
+    `;
+}
+
+
+function injectUserMgmtTab() {
+    if (currentUser.role !== "admin") return;
+
+    // Add nav tab
+    const navTabs = document.querySelector(".nav-tabs");
+    if (navTabs && !document.getElementById("tabUserMgmt")) {
+        const btn = document.createElement("button");
+        btn.className = "nav-tab";
+        btn.id        = "tabUserMgmt";
+        btn.textContent = "👥 Users";
+        btn.onclick = () => showSection("userMgmt");
+        navTabs.appendChild(btn);
+    }
+
+    // Add section
+    if (!document.getElementById("userMgmt")) {
+        const section = document.createElement("div");
+        section.id        = "userMgmt";
+        section.className = "content-section";
+        section.innerHTML = `
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">User Management</h2>
+                    <button class="btn btn-primary" onclick="openAddUserModal()">+ Add User</button>
+                </div>
+                <div id="usersList"></div>
+            </div>
+        `;
+        document.querySelector(".container").appendChild(section);
+    }
+
+    // Add modal
+    if (!document.getElementById("userModal")) {
+        const modal = document.createElement("div");
+        modal.id        = "userModal";
+        modal.className = "modal";
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title">Add New User</h3>
+                    <button class="close-modal" onclick="closeModal('userModal')">&times;</button>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Username</label>
+                        <input type="text" class="form-input" id="newUsername" placeholder="e.g. faculty2">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Password</label>
+                        <input type="password" class="form-input" id="newPassword" placeholder="min 6 characters">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Full Name</label>
+                        <input type="text" class="form-input" id="newName" placeholder="Dr. Jane Doe">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Role</label>
+                        <select class="form-select" id="newRole" onchange="updateLinkedIdHint()">
+                            <option value="admin">Admin</option>
+                            <option value="hod">HOD / Principal</option>
+                            <option value="faculty">Faculty</option>
+                            <option value="student">Student</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="linkedIdGroup">
+                        <label class="form-label" id="linkedIdLabel">Linked ID</label>
+                        <input type="text" class="form-input" id="newLinkedId" placeholder="Faculty ID or Program|Semester">
+                        <small id="linkedIdHint" style="color:var(--text-secondary);font-size:0.8rem;margin-top:4px;display:block"></small>
+                    </div>
+                </div>
+                <div class="btn-group" style="margin-top:1.5rem">
+                    <button class="btn btn-primary" onclick="saveUser()">Create User</button>
+                    <button class="btn btn-secondary" onclick="closeModal('userModal')">Cancel</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+}
+
+function updateLinkedIdHint() {
+    const role  = document.getElementById("newRole").value;
+    const hint  = document.getElementById("linkedIdHint");
+    const label = document.getElementById("linkedIdLabel");
+    if (role === "faculty") {
+        label.textContent = "Faculty ID (must match faculty list)";
+        hint.textContent  = "e.g. FAC001 — links to their teaching schedule";
+    } else if (role === "student") {
+        label.textContent = "Program | Semester";
+        hint.textContent  = "e.g. B.Ed.|1 — filters timetable automatically";
+    } else {
+        label.textContent = "Linked ID (optional)";
+        hint.textContent  = "";
+    }
+}
+
+async function saveUser() {
+    const username  = document.getElementById("newUsername").value.trim();
+    const password  = document.getElementById("newPassword").value;
+    const name      = document.getElementById("newName").value.trim();
+    const role      = document.getElementById("newRole").value;
+    const linked_id = document.getElementById("newLinkedId").value.trim() || null;
+
+    if (!username || !password || !name) {
+        alert("Please fill in username, password, and name.");
+        return;
+    }
+    if (password.length < 6) {
+        alert("Password must be at least 6 characters.");
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API}/add-user`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password, role, name, linked_id })
+        });
+        if (!res.ok) {
+            const err = await res.json();
+            alert(err.detail || "Error creating user.");
+            return;
+        }
+        closeModal("userModal");
+        ["newUsername","newPassword","newName","newLinkedId"].forEach(id => {
+            document.getElementById(id).value = "";
+        });
+        await loadUsers();
+    } catch (e) {
+        alert("Error: " + e.message);
+    }
+}
+
+async function loadUsers() {
+    if (currentUser.role !== "admin") return;
+    try {
+        const res = await fetch(`${API}/users`);
+        users = await res.json();
+        renderUsers();
+    } catch (e) {
+        console.error("Could not load users:", e);
+    }
+}
+
+function renderUsers() {
+    const list = document.getElementById("usersList");
+    if (!list) return;
+    if (users.length === 0) {
+        list.innerHTML = `<div class="alert alert-info">No users found.</div>`;
+        return;
+    }
+
+    const roleColors = { admin:"#ea5455", hod:"#f7b731", faculty:"#26de81", student:"#45aaf2" };
+    const roleEmoji  = { admin:"🛡️", hod:"🎓", faculty:"👨‍🏫", student:"📚" };
+
+    list.innerHTML = users.map(u => `
+        <div class="list-item">
+            <div>
+                <strong>${u.username}</strong>
+                &nbsp;
+                <span class="badge" style="background:${roleColors[u.role]}22;color:${roleColors[u.role]};border:1px solid ${roleColors[u.role]}44">
+                    ${roleEmoji[u.role]} ${u.role}
+                </span>
+                <br>
+                <small style="color:var(--text-secondary)">
+                    ${u.name} ${u.linked_id ? `&nbsp;·&nbsp; Linked: ${u.linked_id}` : ""}
+                </small>
+            </div>
+            <div class="list-item-actions">
+                ${u.username !== "admin"
+                    ? `<button class="btn-icon" title="Delete" onclick="deleteUser(${u.id})">❌</button>`
+                    : `<span style="font-size:0.75rem;color:var(--muted)">protected</span>`
+                }
+            </div>
+        </div>
+    `).join("");
+}
+
+async function deleteUser(id) {
+    if (!confirm("Delete this user?")) return;
+    try {
+        await fetch(`${API}/delete-user/${id}`, { method: "DELETE" });
+        await loadUsers();
+    } catch (e) {
+        alert("Error: " + e.message);
+    }
+}
+
+function openAddUserModal() {
+    updateLinkedIdHint();
+    document.getElementById("userModal").classList.add("active");
+}
+
+
+
+function updateDashboard() {
+    document.getElementById("totalCourses").innerText  = courses.length;
+    document.getElementById("totalFaculty").innerText  = faculty.length;
+    document.getElementById("totalStudents").innerText = students.length;
+    document.getElementById("totalRooms").innerText    = rooms.length;
+}
+
 function showSection(sectionId) {
     document.querySelectorAll(".content-section").forEach(sec =>
         sec.classList.remove("active")
@@ -21,30 +361,33 @@ function showSection(sectionId) {
     document.querySelectorAll(".nav-tab").forEach(tab =>
         tab.classList.remove("active")
     );
-    document.getElementById(sectionId).classList.add("active");
-    const tabIndex = ["dashboard","courses","faculty","students","infrastructure","generate","view"];
-    const idx = tabIndex.indexOf(sectionId);
-    if (idx !== -1) {
-        document.querySelectorAll(".nav-tab")[idx].classList.add("active");
-    }
+    const sec = document.getElementById(sectionId);
+    if (sec) sec.classList.add("active");
+
+    // Highlight matching tab
+    document.querySelectorAll(".nav-tab").forEach(tab => {
+        if (tab.getAttribute("onclick") && tab.getAttribute("onclick").includes(sectionId)) {
+            tab.classList.add("active");
+        }
+    });
 }
-function openAddCourseModal() {
-    document.getElementById("courseModal").classList.add("active");
-}
-function openAddFacultyModal() {
-    document.getElementById("facultyModal").classList.add("active");
-}
-function openAddRoomModal() {
-    document.getElementById("roomModal").classList.add("active");
-}
-function openAddStudentModal() {
-    document.getElementById("studentModal").classList.add("active");
-}
+
+
+
+function openAddCourseModal()  { if (!canWrite()) return; document.getElementById("courseModal").classList.add("active"); }
+function openAddFacultyModal() { if (!canWrite()) return; document.getElementById("facultyModal").classList.add("active"); }
+function openAddRoomModal()    { if (!canWrite()) return; document.getElementById("roomModal").classList.add("active"); }
+function openAddStudentModal() { if (!canWrite()) return; document.getElementById("studentModal").classList.add("active"); }
+
 function closeModal(id) {
     document.getElementById(id).classList.remove("active");
 }
+
+
+
 function renderCourses() {
     const list = document.getElementById("coursesList");
+    if (!list) return;
     list.innerHTML = "";
     if (courses.length === 0) {
         list.innerHTML = `<div class="alert alert-info">No courses added yet.</div>`;
@@ -63,7 +406,7 @@ function renderCourses() {
                     </small>
                 </div>
                 <div class="list-item-actions">
-                    <button class="btn-icon" title="Delete" onclick="deleteCourse('${c.code}')">❌</button>
+                    ${canWrite() ? `<button class="btn-icon" title="Delete" onclick="deleteCourse('${c.code}')">❌</button>` : ""}
                 </div>
             </div>
         `;
@@ -72,6 +415,7 @@ function renderCourses() {
 
 function renderFaculty() {
     const list = document.getElementById("facultyList");
+    if (!list) return;
     list.innerHTML = "";
     if (faculty.length === 0) {
         list.innerHTML = `<div class="alert alert-info">No faculty added yet.</div>`;
@@ -89,7 +433,7 @@ function renderFaculty() {
                     </small>
                 </div>
                 <div class="list-item-actions">
-                    <button class="btn-icon" title="Delete" onclick="deleteFaculty('${f.id}')">❌</button>
+                    ${canWrite() ? `<button class="btn-icon" title="Delete" onclick="deleteFaculty('${f.id}')">❌</button>` : ""}
                 </div>
             </div>
         `;
@@ -98,6 +442,7 @@ function renderFaculty() {
 
 function renderRooms() {
     const list = document.getElementById("roomsList");
+    if (!list) return;
     list.innerHTML = "";
     if (rooms.length === 0) {
         list.innerHTML = `<div class="alert alert-info">No rooms added yet.</div>`;
@@ -111,7 +456,7 @@ function renderRooms() {
                     <span class="badge badge-success" style="margin-left:8px">${r.type}</span>
                 </div>
                 <div class="list-item-actions">
-                    <button class="btn-icon" title="Delete" onclick="deleteRoom('${r.number}')">❌</button>
+                    ${canWrite() ? `<button class="btn-icon" title="Delete" onclick="deleteRoom('${r.number}')">❌</button>` : ""}
                 </div>
             </div>
         `;
@@ -120,6 +465,7 @@ function renderRooms() {
 
 function renderStudents() {
     const list = document.getElementById("studentsList");
+    if (!list) return;
     list.innerHTML = "";
     if (students.length === 0) {
         list.innerHTML = `<div class="alert alert-info">No students added yet.</div>`;
@@ -136,30 +482,27 @@ function renderStudents() {
     });
 }
 
+
+
 async function saveCourse() {
-    const code = document.getElementById("courseCode").value.trim();
-    const name = document.getElementById("courseName").value.trim();
-    const program = document.getElementById("courseProgram").value;
-    const semester = document.getElementById("courseSemester").value;
-    const theoryHours = parseInt(document.getElementById("theoryHours").value) || 0;
-    const practicalHours = parseInt(document.getElementById("practicalHours").value) || 0;
+    if (!canWrite()) return;
+    const code          = document.getElementById("courseCode").value.trim();
+    const name          = document.getElementById("courseName").value.trim();
+    const program       = document.getElementById("courseProgram").value;
+    const semester      = document.getElementById("courseSemester").value;
+    const theoryHours   = parseInt(document.getElementById("theoryHours").value) || 0;
+    const practicalHours= parseInt(document.getElementById("practicalHours").value) || 0;
 
-    if (!code || !name) {
-        alert("Please fill in Course Code and Course Name.");
-        return;
-    }
-
-    const newCourse = { code, name, program, semester, theoryHours, practicalHours };
+    if (!code || !name) { alert("Please fill in Course Code and Course Name."); return; }
 
     try {
         const res = await fetch(`${API}/add-course`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(newCourse)
+            body: JSON.stringify({ code, name, program, semester, theoryHours, practicalHours })
         });
         if (!res.ok) throw new Error(await res.text());
         closeModal("courseModal");
-        // Clear fields
         ["courseCode","courseName","theoryHours","practicalHours"].forEach(id =>
             document.getElementById(id).value = ""
         );
@@ -176,45 +519,33 @@ async function loadCoursesFromDB() {
         renderCourses();
         updateDashboard();
         loadAssignDropdowns();
-    } catch (e) {
-        console.error("Could not load courses:", e);
-    }
+    } catch (e) { console.error("Could not load courses:", e); }
 }
 
 async function saveFaculty() {
-    const id = document.getElementById("facultyId").value.trim();
-    const name = document.getElementById("facultyName").value.trim();
+    if (!canWrite()) return;
+    const id       = document.getElementById("facultyId").value.trim();
+    const name     = document.getElementById("facultyName").value.trim();
     const maxHours = parseInt(document.getElementById("facultyMaxHours").value) || 10;
 
-    if (!id || !name) {
-        alert("Please fill in Faculty ID and Name.");
-        return;
-    }
+    if (!id || !name) { alert("Please fill in Faculty ID and Name."); return; }
+
     const dayCheckboxes = document.querySelectorAll('#facultyModal input[type="checkbox"]');
-    const availableDays = Array.from(dayCheckboxes)
-        .filter(cb => cb.checked)
-        .map(cb => cb.value);
-
-    if (availableDays.length === 0) {
-        alert("Please select at least one available day.");
-        return;
-    }
-
-    const newFaculty = { id, name, maxHours, availableDays };
+    const availableDays = Array.from(dayCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
+    if (availableDays.length === 0) { alert("Please select at least one available day."); return; }
 
     try {
         const res = await fetch(`${API}/add-faculty`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(newFaculty)
+            body: JSON.stringify({ id, name, maxHours, availableDays })
         });
         if (!res.ok) throw new Error(await res.text());
         closeModal("facultyModal");
-        ["facultyId","facultyName","facultyEmail","facultyDept","facultyMaxHours","facultySpec"].forEach(id => {
-            const el = document.getElementById(id);
+        ["facultyId","facultyName","facultyEmail","facultyDept","facultyMaxHours","facultySpec"].forEach(fid => {
+            const el = document.getElementById(fid);
             if (el) el.value = "";
         });
-        
         dayCheckboxes.forEach(cb => cb.checked = true);
         await loadFacultyFromDB();
     } catch (e) {
@@ -229,27 +560,21 @@ async function loadFacultyFromDB() {
         renderFaculty();
         updateDashboard();
         loadAssignDropdowns();
-    } catch (e) {
-        console.error("Could not load faculty:", e);
-    }
+    } catch (e) { console.error("Could not load faculty:", e); }
 }
 
 async function saveRoom() {
+    if (!canWrite()) return;
     const number = document.getElementById("roomNumber").value.trim();
-    const type = document.getElementById("roomType").value;
+    const type   = document.getElementById("roomType").value;
 
-    if (!number) {
-        alert("Please enter a room number.");
-        return;
-    }
-
-    const newRoom = { number, type };
+    if (!number) { alert("Please enter a room number."); return; }
 
     try {
         const res = await fetch(`${API}/add-room`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(newRoom)
+            body: JSON.stringify({ number, type })
         });
         if (!res.ok) throw new Error(await res.text());
         closeModal("roomModal");
@@ -266,34 +591,28 @@ async function loadRoomsFromDB() {
         rooms = await response.json();
         renderRooms();
         updateDashboard();
-    } catch (e) {
-        console.error("Could not load rooms:", e);
-    }
+    } catch (e) { console.error("Could not load rooms:", e); }
 }
 
 function saveStudent() {
-    const id = document.getElementById("studentId").value.trim();
-    const name = document.getElementById("studentName").value.trim();
-    const program = document.getElementById("studentProgram").value;
+    if (!canWrite()) return;
+    const id       = document.getElementById("studentId").value.trim();
+    const name     = document.getElementById("studentName").value.trim();
+    const program  = document.getElementById("studentProgram").value;
     const semester = document.getElementById("studentSemester").value;
 
-    if (!id || !name) {
-        alert("Please fill in Student ID and Name.");
-        return;
-    }
+    if (!id || !name) { alert("Please fill in Student ID and Name."); return; }
 
     students.push({ id, name, program, semester });
     renderStudents();
     updateDashboard();
     closeModal("studentModal");
-    ["studentId","studentName","studentEmail","studentCredits"].forEach(sid => {
-        const el = document.getElementById(sid);
-        if (el) el.value = "";
-    });
 }
 
+
+
 function loadAssignDropdowns() {
-    const courseSelect = document.getElementById("assignCourse");
+    const courseSelect  = document.getElementById("assignCourse");
     const facultySelect = document.getElementById("assignFaculty");
     if (!courseSelect || !facultySelect) return;
 
@@ -307,13 +626,10 @@ function loadAssignDropdowns() {
 }
 
 async function assignFacultyToCourse() {
+    if (!canWrite()) return;
     const courseCode = document.getElementById("assignCourse").value;
-    const facultyId = document.getElementById("assignFaculty").value;
-
-    if (!courseCode || !facultyId) {
-        alert("Please select both a course and a faculty member.");
-        return;
-    }
+    const facultyId  = document.getElementById("assignFaculty").value;
+    if (!courseCode || !facultyId) { alert("Please select both a course and a faculty member."); return; }
 
     try {
         const res = await fetch(`${API}/assign-faculty`, {
@@ -329,36 +645,38 @@ async function assignFacultyToCourse() {
 }
 
 
-
 async function generateTimetable() {
-    const selectedProgram = document.getElementById("program").value;
-    const semesterRaw = document.getElementById("semester").value;
+    if (!canWrite()) {
+        alert("Only Admin can generate timetables.");
+        return;
+    }
+    const selectedProgram  = document.getElementById("program").value;
+    const semesterRaw      = document.getElementById("semester").value;
     const selectedSemester = semesterRaw.replace("Semester ", "");
-
-    const resultDiv = document.getElementById("generationResult");
-    resultDiv.innerHTML = "";
+    const resultDiv        = document.getElementById("generationResult");
+    resultDiv.innerHTML    = "";
 
     if (faculty.length === 0) {
-        resultDiv.innerHTML = `<div class="alert alert-error">⚠️ Please add faculty before generating timetable.</div>`;
+        resultDiv.innerHTML = `<div class="alert alert-error">⚠️ Please add faculty before generating.</div>`;
         return;
     }
     if (rooms.length === 0) {
-        resultDiv.innerHTML = `<div class="alert alert-error">⚠️ Please add rooms before generating timetable.</div>`;
+        resultDiv.innerHTML = `<div class="alert alert-error">⚠️ Please add rooms before generating.</div>`;
         return;
     }
+
     const relevantCourses = courses.filter(c =>
         (selectedProgram === "All Programs" || c.program === selectedProgram) &&
         String(c.semester) === String(selectedSemester)
     );
-
     if (relevantCourses.length === 0) {
         resultDiv.innerHTML = `
             <div class="alert alert-error">
-                ⚠️ No courses found for <strong>${selectedProgram}</strong>, Semester <strong>${selectedSemester}</strong>.<br>
-                Please add courses with matching program and semester.
+                ⚠️ No courses for <strong>${selectedProgram}</strong>, Semester <strong>${selectedSemester}</strong>.
             </div>`;
         return;
     }
+
     document.getElementById("generationProgress").style.display = "block";
     simulateProgress();
 
@@ -367,30 +685,24 @@ async function generateTimetable() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                courses,      
-                faculty,     
-                rooms,
+                courses, faculty, rooms,
                 program: selectedProgram,
                 semester: selectedSemester
             })
         });
 
         const result = await response.json();
-
         document.getElementById("generationProgress").style.display = "none";
         document.getElementById("progressFill").style.width = "0%";
+
         let hasData = false;
         for (let day in result.timetable) {
             for (let slot in result.timetable[day]) {
-                if (result.timetable[day][slot] !== null) {
-                    hasData = true;
-                    break;
-                }
+                if (result.timetable[day][slot] !== null) { hasData = true; break; }
             }
             if (hasData) break;
         }
 
-        // Show warnings if any
         if (result.warnings && result.warnings.length > 0) {
             resultDiv.innerHTML = result.warnings.map(w =>
                 `<div class="alert alert-warning">⚠️ ${w}</div>`
@@ -398,45 +710,36 @@ async function generateTimetable() {
         }
 
         if (!hasData) {
-            resultDiv.innerHTML += `
-                <div class="alert alert-error">
-                    ❌ Could not generate timetable. Check that faculty are assigned to courses
-                    and faculty availability matches the schedule days.
-                </div>`;
+            resultDiv.innerHTML += `<div class="alert alert-error">❌ Could not generate timetable. Check faculty assignments and room availability.</div>`;
             return;
         }
 
         resultDiv.innerHTML += `<div class="alert alert-success">✅ Timetable generated successfully!</div>`;
         generatedTimetable = result.timetable;
         displayTimetable();
-
         setTimeout(() => showSection("view"), 800);
 
     } catch (error) {
         document.getElementById("generationProgress").style.display = "none";
-        resultDiv.innerHTML = `
-            <div class="alert alert-error">
-                ❌ Backend not reachable. Make sure FastAPI is running:<br>
-                <code>uvicorn main:app --reload</code>
-            </div>`;
+        resultDiv.innerHTML = `<div class="alert alert-error">❌ Backend not reachable. Run: <code>uvicorn main:app --reload</code></div>`;
         console.error(error);
     }
 }
 
 function simulateProgress() {
-    const fill = document.getElementById("progressFill");
+    const fill  = document.getElementById("progressFill");
     const label = document.getElementById("progressLabel");
     const steps = [
-        [15, "Loading courses & faculty..."],
-        [35, "Scheduling lab sessions..."],
-        [60, "Distributing theory slots..."],
-        [80, "Resolving conflicts..."],
-        [95, "Finalizing timetable..."]
+        [15,"Loading courses & faculty..."],
+        [35,"Scheduling lab sessions..."],
+        [60,"Distributing theory slots..."],
+        [80,"Resolving conflicts..."],
+        [95,"Finalizing timetable..."]
     ];
     let i = 0;
     const interval = setInterval(() => {
         if (i >= steps.length) { clearInterval(interval); return; }
-        fill.style.width = steps[i][0] + "%";
+        fill.style.width  = steps[i][0] + "%";
         label.textContent = steps[i][1];
         i++;
     }, 300);
@@ -454,13 +757,17 @@ function resetGeneration() {
 function displayTimetable() {
     if (!generatedTimetable) return;
 
-    const days = Object.keys(generatedTimetable);
+    const days  = Object.keys(generatedTimetable);
     const slots = Object.keys(generatedTimetable[days[0]]);
+
     const BREAK_AFTER = {
         1: "☕ Short Break (10:40 – 10:50 AM)",
         3: "🍽 Lunch Break (12:30 – 1:30 PM)",
         5: "☕ Short Break (3:10 – 3:20 PM)"
     };
+    const filterFacName = (currentUser.role === "faculty" && currentUser.linked_id)
+        ? getFacultyNameById(currentUser.linked_id)
+        : null;
 
     let html = `<table class='timetable'><thead><tr><th>Time / Day</th>`;
     days.forEach(day => html += `<th>${day}</th>`);
@@ -471,7 +778,9 @@ function displayTimetable() {
 
         days.forEach(day => {
             const cell = generatedTimetable[day][slot];
-            if (cell) {
+            const show = cell && (!filterFacName || cell.faculty === filterFacName);
+
+            if (show) {
                 const typeColor = cell.type.startsWith("Lab") ? "#e3f2fd" : "#f0fdf4";
                 const typeBadge = cell.type.startsWith("Lab")
                     ? `<span style="background:#1565c0;color:white;padding:2px 6px;border-radius:4px;font-size:0.7rem;">LAB</span>`
@@ -504,14 +813,25 @@ function displayTimetable() {
 
     html += `</tbody></table>`;
     document.getElementById("timetableDisplay").innerHTML = html;
-
     updateFilterFacultyDropdown();
+}
+
+function getFacultyNameById(facultyId) {
+    const f = faculty.find(f => f.id === facultyId);
+    return f ? f.name : null;
 }
 
 function updateFilterFacultyDropdown() {
     const sel = document.getElementById("filterFaculty");
     if (!sel) return;
-    sel.innerHTML = `<option>All Faculty</option>`;
+    if (currentUser.role === "faculty") {
+        const facName = getFacultyNameById(currentUser.linked_id);
+        sel.innerHTML = `<option value="${currentUser.linked_id}">${facName || currentUser.name}</option>`;
+        sel.disabled  = true;
+        return;
+    }
+    sel.disabled  = false;
+    sel.innerHTML = `<option value="">All Faculty</option>`;
     faculty.forEach(f => {
         sel.innerHTML += `<option value="${f.id}">${f.name}</option>`;
     });
@@ -519,109 +839,44 @@ function updateFilterFacultyDropdown() {
 
 function filterTimetable() {
     if (!generatedTimetable) {
-        document.getElementById("timetableDisplay").innerHTML = `
-            <div class="alert alert-info">📅 Generate timetable first.</div>`;
+        document.getElementById("timetableDisplay").innerHTML =
+            `<div class="alert alert-info">📅 Generate timetable first.</div>`;
         return;
     }
-
-    const selectedFaculty = document.getElementById("filterFaculty").value;
-
-    if (selectedFaculty === "All Faculty") {
-        displayTimetable();
-        return;
-    }
-    const fac = faculty.find(f => f.id === selectedFaculty);
-    const facName = fac ? fac.name : selectedFaculty;
-    const days = Object.keys(generatedTimetable);
-    const slots = Object.keys(generatedTimetable[days[0]]);
-
-    const BREAK_AFTER = {
-        1: "☕ Short Break (10:40 – 10:50 AM)",
-        3: "🍽 Lunch Break (12:30 – 1:30 PM)",
-        5: "☕ Short Break (3:10 – 3:20 PM)"
-    };
-
-    let html = `<div class="alert alert-info" style="margin-bottom:1rem">
-        📅 Showing timetable for: <strong>${facName}</strong>
-    </div>`;
-    html += `<table class='timetable'><thead><tr><th>Time / Day</th>`;
-    days.forEach(day => html += `<th>${day}</th>`);
-    html += `</tr></thead><tbody>`;
-
-    slots.forEach((slot, index) => {
-        html += `<tr><td><strong>${convertTo12Hour(slot)}</strong></td>`;
-
-        days.forEach(day => {
-            const cell = generatedTimetable[day][slot];
-            const match = cell && cell.faculty === facName;
-            if (match) {
-                const typeColor = cell.type.startsWith("Lab") ? "#e3f2fd" : "#f0fdf4";
-                html += `
-                    <td class="timetable-cell occupied" style="background:${typeColor}">
-                        <div class="class-info">
-                            <div class="class-code">${cell.course}</div>
-                            <div style="font-size:0.82rem">${cell.name}</div>
-                            <div class="class-faculty">🚪 ${cell.room}</div>
-                            <div class="class-faculty" style="color:#1565c0">${cell.type}</div>
-                        </div>
-                    </td>`;
-            } else {
-                html += `<td class="timetable-cell"></td>`;
-            }
-        });
-
-        html += `</tr>`;
-
-        if (BREAK_AFTER[index] !== undefined) {
-            const bg = index === 3 ? "#fab1a0" : "#ffeaa7";
-            html += `
-                <tr style="background:${bg}; font-weight:bold; text-align:center;">
-                    <td colspan="${days.length + 1}">${BREAK_AFTER[index]}</td>
-                </tr>`;
-        }
-    });
-
-    html += `</tbody></table>`;
-    document.getElementById("timetableDisplay").innerHTML = html;
+    displayTimetable(); 
 }
 
+
 async function deleteCourse(code) {
-    if (!confirm(`Delete course ${code}?`)) return;
+    if (!canWrite() || !confirm(`Delete course ${code}?`)) return;
     try {
         await fetch(`${API}/delete-course/${encodeURIComponent(code)}`, { method: "DELETE" });
         await loadCoursesFromDB();
-    } catch (e) {
-        alert("Error deleting course: " + e.message);
-    }
+    } catch (e) { alert("Error: " + e.message); }
 }
 
 async function deleteFaculty(id) {
-    if (!confirm(`Delete faculty ${id}?`)) return;
+    if (!canWrite() || !confirm(`Delete faculty ${id}?`)) return;
     try {
         await fetch(`${API}/delete-faculty/${encodeURIComponent(id)}`, { method: "DELETE" });
         await loadFacultyFromDB();
-    } catch (e) {
-        alert("Error deleting faculty: " + e.message);
-    }
+    } catch (e) { alert("Error: " + e.message); }
 }
 
 async function deleteRoom(number) {
-    if (!confirm(`Delete room ${number}?`)) return;
+    if (!canWrite() || !confirm(`Delete room ${number}?`)) return;
     try {
         await fetch(`${API}/delete-room/${encodeURIComponent(number)}`, { method: "DELETE" });
         await loadRoomsFromDB();
-    } catch (e) {
-        alert("Error deleting room: " + e.message);
-    }
+    } catch (e) { alert("Error: " + e.message); }
 }
+
 
 function exportToPDF() {
     if (!generatedTimetable) { alert("Generate timetable first!"); return; }
-
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation: "landscape" });
-
-    const days = Object.keys(generatedTimetable);
+    const doc  = new jsPDF({ orientation: "landscape" });
+    const days  = Object.keys(generatedTimetable);
     const slots = Object.keys(generatedTimetable[days[0]]);
 
     doc.setFontSize(16);
@@ -629,81 +884,65 @@ function exportToPDF() {
     doc.setFontSize(10);
     doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 22);
 
-    const tableColumn = ["Time", ...days];
-    const tableRows = [];
-
     const BREAK_AFTER = {
-        1: "☕ SHORT BREAK (10:40 – 10:50 AM)",
-        3: "🍽 LUNCH BREAK (12:30 – 1:30 PM)",
-        5: "☕ SHORT BREAK (3:10 – 3:20 PM)"
+        1:"☕ SHORT BREAK (10:40–10:50 AM)",
+        3:"🍽 LUNCH BREAK (12:30–1:30 PM)",
+        5:"☕ SHORT BREAK (3:10–3:20 PM)"
     };
 
+    const tableRows = [];
     slots.forEach((slot, index) => {
         let row = [convertTo12Hour(slot)];
         days.forEach(day => {
             const cell = generatedTimetable[day][slot];
-            row.push(cell
-                ? `${cell.course}\n${cell.name}\n${cell.faculty}\nRoom: ${cell.room}\n[${cell.type}]`
-                : "—"
-            );
+            row.push(cell ? `${cell.course}\n${cell.name}\n${cell.faculty}\nRoom: ${cell.room}\n[${cell.type}]` : "—");
         });
         tableRows.push(row);
-
         if (BREAK_AFTER[index]) {
             tableRows.push([{
                 content: BREAK_AFTER[index],
                 colSpan: days.length + 1,
-                styles: { halign: "center", fontStyle: "bold", fillColor: [240, 230, 140] }
+                styles: { halign:"center", fontStyle:"bold", fillColor:[240,230,140] }
             }]);
         }
     });
 
     doc.autoTable({
         startY: 27,
-        head: [tableColumn],
+        head: [["Time", ...days]],
         body: tableRows,
-        styles: { fontSize: 7, cellPadding: 2 },
-        headStyles: { fillColor: [26, 35, 50] },
-        columnStyles: { 0: { cellWidth: 28 } }
+        styles: { fontSize:7, cellPadding:2 },
+        headStyles: { fillColor:[26,35,50] },
+        columnStyles: { 0:{ cellWidth:28 } }
     });
-
     doc.save("NEP_Timetable.pdf");
 }
 
 function exportToExcel() {
     if (!generatedTimetable) { alert("Generate timetable first!"); return; }
-
-    const days = Object.keys(generatedTimetable);
+    const days  = Object.keys(generatedTimetable);
     const slots = Object.keys(generatedTimetable[days[0]]);
-
     let data = [["Time", ...days]];
 
     const BREAK_AFTER = {
-        1: "SHORT BREAK (10:40 – 10:50 AM)",
-        3: "LUNCH BREAK (12:30 – 1:30 PM)",
-        5: "SHORT BREAK (3:10 – 3:20 PM)"
+        1:"SHORT BREAK (10:40–10:50 AM)",
+        3:"LUNCH BREAK (12:30–1:30 PM)",
+        5:"SHORT BREAK (3:10–3:20 PM)"
     };
 
     slots.forEach((slot, index) => {
         let row = [convertTo12Hour(slot)];
         days.forEach(day => {
             const cell = generatedTimetable[day][slot];
-            row.push(cell
-                ? `${cell.course}\n${cell.name}\n${cell.faculty}\nRoom: ${cell.room}\n[${cell.type}]`
-                : "—"
-            );
+            row.push(cell ? `${cell.course}\n${cell.name}\n${cell.faculty}\nRoom: ${cell.room}\n[${cell.type}]` : "—");
         });
         data.push(row);
-
-        if (BREAK_AFTER[index]) {
-            data.push([BREAK_AFTER[index], "", "", "", "", ""]);
-        }
+        if (BREAK_AFTER[index]) data.push([BREAK_AFTER[index], "", "", "", "", ""]);
     });
 
     const ws = XLSX.utils.aoa_to_sheet(data);
-    ws["!cols"] = [{ wch: 22 }, ...days.map(() => ({ wch: 36 }))];
-    ws["!rows"] = data.map(() => ({ hpt: 70 }));
-
+    ws["!cols"] = [{ wch:22 }, ...days.map(() => ({ wch:36 }))];
+    ws["!rows"] = data.map(() => ({ hpt:70 }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Timetable");
     XLSX.writeFile(wb, "NEP_Timetable.xlsx");
@@ -715,13 +954,20 @@ function convertTo12Hour(timeRange) {
         hours = parseInt(hours);
         const period = hours >= 12 ? "PM" : "AM";
         hours = hours % 12 || 12;
-        return `${hours.toString().padStart(2, "0")}:${minutes} ${period}`;
+        return `${hours.toString().padStart(2,"0")}:${minutes} ${period}`;
     }
     const [start, end] = timeRange.split("-");
     return `${convert(start)} – ${convert(end)}`;
 }
 
+
 window.onload = async function () {
+    if (!requireLogin()) return;
+
+    applyRoleUI();
+
+    injectUserMgmtTab();
+
     try {
         await Promise.all([
             loadFacultyFromDB(),
@@ -729,7 +975,12 @@ window.onload = async function () {
             loadRoomsFromDB()
         ]);
         loadAssignDropdowns();
+        if (currentUser.role === "admin") await loadUsers();
     } catch (e) {
-        console.warn("Could not connect to backend on startup:", e.message);
+        console.warn("Could not connect to backend:", e.message);
+    }
+
+    if (currentUser.role === "faculty" || currentUser.role === "student") {
+        showSection("view");
     }
 };

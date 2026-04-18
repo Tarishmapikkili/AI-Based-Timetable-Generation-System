@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEP 2020 Timetable — Login</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,600;0,700;1,300;1,600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary:      #1a2332;
+            --secondary:    #2d4059;
+            --accent:       #ea5455;
+            --accent-light: #ff6b6b;
+            --gold:         #f7b731;
+            --bg:           #f0f2f5;
+            --white:        #ffffff;
+            --text:         #1a2332;
+            --muted:        #6c757d;
+            --border:       #dee2e6;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            background: var(--bg);
+            overflow: hidden;
+        }
+
+       
+        .left-panel {
+            flex: 1;
+            background: linear-gradient(145deg, var(--primary) 0%, var(--secondary) 60%, #3a5a8c 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 4rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .left-panel::before {
+            content: '';
+            position: absolute;
+            width: 500px; height: 500px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(234,84,85,0.18) 0%, transparent 70%);
+            top: -100px; right: -100px;
+        }
+
+        .left-panel::after {
+            content: '';
+            position: absolute;
+            width: 300px; height: 300px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(247,183,49,0.12) 0%, transparent 70%);
+            bottom: -50px; left: -50px;
+        }
+
+        .shape {
+            position: absolute;
+            border: 2px solid rgba(255,255,255,0.07);
+            border-radius: 50%;
+            animation: float 6s ease-in-out infinite;
+        }
+        .shape-1 { width:120px; height:120px; top:15%; right:20%; animation-delay:0s; }
+        .shape-2 { width:60px;  height:60px;  top:60%; right:35%; animation-delay:1.5s; }
+        .shape-3 { width:200px; height:200px; bottom:20%; right:5%; animation-delay:3s; border-radius:20%; }
+
+        @keyframes float {
+            0%,100% { transform: translateY(0) rotate(0deg); }
+            50%      { transform: translateY(-16px) rotate(4deg); }
+        }
+
+        .brand { position: relative; z-index: 2; margin-bottom: 2.5rem; }
+
+        .brand-badge {
+            display: inline-block;
+            background: rgba(234,84,85,0.2);
+            border: 1px solid rgba(234,84,85,0.4);
+            color: #ff9a9a;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            padding: 0.4rem 1rem;
+            border-radius: 20px;
+            margin-bottom: 1.5rem;
+        }
+
+        .brand h1 {
+            font-family: 'Fraunces', serif;
+            font-size: 3rem;
+            font-weight: 700;
+            color: white;
+            line-height: 1.15;
+            margin-bottom: 1rem;
+        }
+
+        .brand h1 em { font-style: italic; color: var(--gold); }
+
+        .brand p {
+            color: rgba(255,255,255,0.65);
+            font-size: 1rem;
+            line-height: 1.7;
+            max-width: 380px;
+        }
+
+       
+        .role-grid {
+            position: relative; z-index: 2;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+            margin-top: 3rem;
+            max-width: 420px;
+        }
+
+        .role-card {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 14px;
+            padding: 1rem 1.25rem;
+            backdrop-filter: blur(8px);
+        }
+
+        .role-icon { font-size: 1.4rem; margin-bottom: 0.4rem; }
+        .role-name { color: white; font-weight: 600; font-size: 0.85rem; margin-bottom: 0.2rem; }
+        .role-desc { color: rgba(255,255,255,0.5); font-size: 0.75rem; line-height: 1.4; }
+
+        
+        .right-panel {
+            width: 480px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem 2.5rem;
+            background: var(--white);
+            box-shadow: -20px 0 60px rgba(0,0,0,0.06);
+        }
+
+        .login-box { width: 100%; max-width: 380px; }
+
+        .login-header { margin-bottom: 2.5rem; text-align: center; }
+
+        .login-header .avatar {
+            width: 64px; height: 64px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-light));
+            border-radius: 20px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.8rem;
+            margin: 0 auto 1.25rem;
+            box-shadow: 0 8px 24px rgba(234,84,85,0.3);
+            animation: pulse-ring 2.5s ease infinite;
+        }
+
+        @keyframes pulse-ring {
+            0%, 100% { box-shadow: 0 8px 24px rgba(234,84,85,0.3); }
+            50%       { box-shadow: 0 8px 32px rgba(234,84,85,0.55); }
+        }
+
+        .login-header h2 {
+            font-family: 'Fraunces', serif;
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 0.4rem;
+        }
+
+        .login-header p { color: var(--muted); font-size: 0.9rem; }
+
+      
+        .form-group { margin-bottom: 1.25rem; }
+
+        .form-label {
+            display: block;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: var(--text);
+            margin-bottom: 0.5rem;
+            letter-spacing: 0.3px;
+        }
+
+        .input-wrap { position: relative; }
+
+        .input-icon {
+            position: absolute;
+            left: 1rem; top: 50%;
+            transform: translateY(-50%);
+            font-size: 1rem;
+            pointer-events: none;
+            opacity: 0.45;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.875rem 1rem 0.875rem 2.75rem;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.95rem;
+            color: var(--text);
+            background: #fafafa;
+            transition: all 0.25s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(234,84,85,0.1);
+        }
+
+        .toggle-pw {
+            position: absolute;
+            right: 1rem; top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            opacity: 0.4;
+            font-size: 1rem;
+            background: none; border: none;
+            transition: opacity 0.2s;
+        }
+        .toggle-pw:hover { opacity: 0.8; }
+
+        .btn-login {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-family: 'DM Sans', sans-serif;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 0.5rem;
+            box-shadow: 0 4px 18px rgba(234,84,85,0.35);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 28px rgba(234,84,85,0.45);
+        }
+
+        .btn-login:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+
+        .btn-spinner {
+            display: none;
+            width: 18px; height: 18px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+       
+        .alert {
+            padding: 0.875rem 1rem;
+            border-radius: 10px;
+            font-size: 0.88rem;
+            font-weight: 500;
+            margin-bottom: 1.25rem;
+            display: none;
+            align-items: center;
+            gap: 0.5rem;
+            animation: slideDown 0.3s ease;
+        }
+        @keyframes slideDown {
+            from { opacity:0; transform:translateY(-8px); }
+            to   { opacity:1; transform:translateY(0); }
+        }
+        .alert-error   { background:#fff0f0; color:#c0392b; border:2px solid #fcc; }
+        .alert-success { background:#f0fff4; color:#27ae60; border:2px solid #b2dfdb; }
+
+       
+        .contact-note {
+            margin-top: 2rem;
+            padding: 1rem 1.25rem;
+            background: #f8f9ff;
+            border: 1px solid #e0e7ff;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .contact-note p {
+            color: var(--muted);
+            font-size: 0.83rem;
+            line-height: 1.6;
+        }
+
+        .contact-note strong { color: var(--text); }
+
+      
+        .login-footer {
+            text-align: center;
+            margin-top: 1.5rem;
+            color: var(--muted);
+            font-size: 0.8rem;
+        }
+
+      
+        .attempts-bar {
+            margin-top: 0.75rem;
+            font-size: 0.8rem;
+            text-align: center;
+            color: var(--muted);
+            display: none;
+        }
+
+        .attempts-bar.warning { color: #e67e22; display: block; }
+        .attempts-bar.danger  { color: #c0392b; display: block; }
+
+       
+        .locked-overlay {
+            display: none;
+            padding: 1.5rem;
+            background: #fff5f5;
+            border: 2px solid #fcc;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+        .locked-overlay.active { display: block; }
+        .locked-overlay h3 { color: #c0392b; margin-bottom: 0.5rem; font-size: 1rem; }
+        .locked-overlay p  { color: var(--muted); font-size: 0.85rem; }
+        .countdown { font-weight: 700; color: #c0392b; font-size: 1.1rem; }
+
+        @media (max-width: 900px) {
+            .left-panel { display: none; }
+            .right-panel { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="left-panel">
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+    <div class="shape shape-3"></div>
+
+    <div class="brand">
+        <div class="brand-badge">NEP 2020 Compliant</div>
+        <h1>Intelligent<br><em>Timetable</em><br>Generator</h1>
+        <p>AI-powered scheduling for B.Ed., M.Ed., FYUP &amp; ITEP programmes — conflict-free, credit-aware, and instantly exportable.</p>
+    </div>
+
+    <div class="role-grid">
+        <div class="role-card">
+            <div class="role-icon">🛡️</div>
+            <div class="role-name">Admin</div>
+            <div class="role-desc">Full control — manage courses, faculty, rooms &amp; generate timetables</div>
+        </div>
+        <div class="role-card">
+            <div class="role-icon">🎓</div>
+            <div class="role-name">HOD / Principal</div>
+            <div class="role-desc">View all timetables and programme reports</div>
+        </div>
+        <div class="role-card">
+            <div class="role-icon">👨‍🏫</div>
+            <div class="role-name">Faculty</div>
+            <div class="role-desc">View your personal teaching schedule</div>
+        </div>
+        <div class="role-card">
+            <div class="role-icon">📚</div>
+            <div class="role-name">Student</div>
+            <div class="role-desc">View your programme &amp; semester timetable</div>
+        </div>
+    </div>
+</div>
+
+
+<div class="right-panel">
+    <div class="login-box">
+
+        <div class="login-header">
+            <div class="avatar">🎓</div>
+            <h2>Welcome back</h2>
+            <p>Sign in with your credentials provided by Admin</p>
+        </div>
+
+      
+        <div class="locked-overlay" id="lockedOverlay">
+            <h3>🔒 Account Temporarily Locked</h3>
+            <p>Too many failed attempts. Please wait</p>
+            <div class="countdown" id="countdown">30</div>
+            <p>seconds before trying again.</p>
+        </div>
+
+      
+        <div class="alert alert-error" id="errorAlert" style="display:none">
+            <span>⚠️</span> <span id="errorMsg">Invalid credentials.</span>
+        </div>
+        <div class="alert alert-success" id="successAlert" style="display:none">
+            <span>✅</span> <span id="successMsg">Login successful! Redirecting…</span>
+        </div>
+
+       
+        <div id="loginForm">
+            <div class="form-group">
+                <label class="form-label">Username</label>
+                <div class="input-wrap">
+                    <span class="input-icon">👤</span>
+                    <input type="text" class="form-input" id="username"
+                           placeholder="Enter your username"
+                           autocomplete="username"
+                           spellcheck="false">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Password</label>
+                <div class="input-wrap">
+                    <span class="input-icon">🔒</span>
+                    <input type="password" class="form-input" id="password"
+                           placeholder="Enter your password"
+                           autocomplete="current-password">
+                    <button class="toggle-pw" type="button"
+                            onclick="togglePassword()" id="toggleBtn">👁️</button>
+                </div>
+            </div>
+
+            <div class="attempts-bar" id="attemptsBar"></div>
+
+            <button class="btn-login" id="loginBtn" onclick="handleLogin()">
+                <span id="btnText">Sign In</span>
+                <div class="btn-spinner" id="btnSpinner"></div>
+            </button>
+        </div>
+
+       
+        <div class="contact-note">
+            <p>
+                Don't have an account?<br>
+                <strong>Contact your System Administrator</strong> to get your
+                login credentials assigned to your role.
+            </p>
+        </div>
+
+        <div class="login-footer">
+            NEP 2020 Timetable Generator &nbsp;·&nbsp; Capstone Project
+        </div>
+    </div>
+</div>
+
+<script>
+    const API = "http://127.0.0.1:8000";
+
+   
+    const MAX_ATTEMPTS  = 5;
+    const LOCKOUT_SECS  = 30;
+    let   failedAttempts = 0;
+    let   lockoutTimer   = null;
+    let   isLocked       = false;
+
+    function togglePassword() {
+        const pw  = document.getElementById("password");
+        const btn = document.getElementById("toggleBtn");
+        if (pw.type === "password") {
+            pw.type       = "text";
+            btn.textContent = "🙈";
+        } else {
+            pw.type       = "password";
+            btn.textContent = "👁️";
+        }
+    }
+
+    function showError(msg) {
+        const el = document.getElementById("errorAlert");
+        document.getElementById("errorMsg").textContent = msg;
+        el.style.display = "flex";
+        document.getElementById("successAlert").style.display = "none";
+    }
+
+    function showSuccess(msg) {
+        const el = document.getElementById("successAlert");
+        document.getElementById("successMsg").textContent = msg;
+        el.style.display = "flex";
+        document.getElementById("errorAlert").style.display = "none";
+    }
+
+    function updateAttemptsBar() {
+        const bar       = document.getElementById("attemptsBar");
+        const remaining = MAX_ATTEMPTS - failedAttempts;
+
+        if (failedAttempts === 0) {
+            bar.className   = "attempts-bar";
+            bar.textContent = "";
+            return;
+        }
+
+        if (remaining <= 1) {
+            bar.className   = "attempts-bar danger";
+            bar.textContent = `⚠️ Last attempt before temporary lockout!`;
+        } else if (remaining <= 2) {
+            bar.className   = "attempts-bar warning";
+            bar.textContent = `${remaining} attempts remaining before lockout.`;
+        } else {
+            bar.className   = "attempts-bar warning";
+            bar.textContent = `${remaining} attempts remaining.`;
+        }
+    }
+
+    function startLockout() {
+        isLocked = true;
+        document.getElementById("lockedOverlay").classList.add("active");
+        document.getElementById("loginForm").style.opacity = "0.3";
+        document.getElementById("loginForm").style.pointerEvents = "none";
+        document.getElementById("errorAlert").style.display = "none";
+
+        let secs = LOCKOUT_SECS;
+        document.getElementById("countdown").textContent = secs;
+
+        lockoutTimer = setInterval(() => {
+            secs--;
+            document.getElementById("countdown").textContent = secs;
+            if (secs <= 0) {
+                clearInterval(lockoutTimer);
+                isLocked        = false;
+                failedAttempts  = 0;
+                document.getElementById("lockedOverlay").classList.remove("active");
+                document.getElementById("loginForm").style.opacity      = "1";
+                document.getElementById("loginForm").style.pointerEvents = "auto";
+                document.getElementById("attemptsBar").className = "attempts-bar";
+                document.getElementById("attemptsBar").textContent = "";
+                document.getElementById("username").focus();
+            }
+        }, 1000);
+    }
+
+    async function handleLogin() {
+        if (isLocked) return;
+
+        const username = document.getElementById("username").value.trim();
+        const password = document.getElementById("password").value;
+
+        if (!username || !password) {
+            showError("Please enter both username and password.");
+            return;
+        }
+
+        
+        const btn = document.getElementById("loginBtn");
+        document.getElementById("btnText").style.display   = "none";
+        document.getElementById("btnSpinner").style.display = "block";
+        btn.disabled = true;
+        document.getElementById("errorAlert").style.display = "none";
+
+        try {
+            const res = await fetch(`${API}/login`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username, password })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+               
+                failedAttempts++;
+                updateAttemptsBar();
+
+                if (failedAttempts >= MAX_ATTEMPTS) {
+                    startLockout();
+                } else {
+                    showError("Incorrect username or password. Please try again.");
+                }
+                return;
+            }
+
+            
+            failedAttempts = 0;
+            sessionStorage.setItem("user", JSON.stringify(data));
+            showSuccess(`Welcome, ${data.name}! Redirecting to dashboard…`);
+
+            setTimeout(() => {
+                window.location.href = "index.html";
+            }, 1200);
+
+        } catch (e) {
+            showError("Cannot connect to server. Make sure the backend is running.");
+        } finally {
+            document.getElementById("btnText").style.display   = "block";
+            document.getElementById("btnSpinner").style.display = "none";
+            btn.disabled = false;
+        }
+    }
+
+
+    document.addEventListener("keydown", e => {
+        if (e.key === "Enter" && !isLocked) handleLogin();
+    });
+
+    
+    sessionStorage.removeItem("user");
+</script>
+</body>
+</html>

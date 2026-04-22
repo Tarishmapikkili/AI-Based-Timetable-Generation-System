@@ -42,10 +42,9 @@ function logout() {
 // student→ view timetable only (filtered to their program+semester)
  
 const ROLE_TABS = {
-    admin:   ["dashboard","courses","faculty","students","infrastructure","generate","view","userMgmt"],
+    admin:   ["dashboard","courses","faculty","infrastructure","generate","view","userMgmt"],
     hod:     ["dashboard","courses","faculty","infrastructure","view"],
-    faculty: ["view"],
-    student: ["view"]
+    faculty: ["view"]
 };
  
 const WRITE_ROLES = ["admin"]; // only admin can add/delete/generate
@@ -56,57 +55,31 @@ function canWrite() {
  
 // ── Apply role restrictions to UI ────────────────────────────────────────────
 function applyRoleUI() {
-    const role      = currentUser.role;
+    const role        = currentUser.role;
     const allowedTabs = ROLE_TABS[role] || ["view"];
  
-    // Show/hide nav tabs
-    const tabMap = {
-        dashboard:      0,
-        courses:        1,
-        faculty:        2,
-        students:       3,
-        infrastructure: 4,
-        generate:       5,
-        view:           6,
-        userMgmt:       7   // injected dynamically for admin
-    };
- 
+    // Tab order matches nav-tab buttons in index.html (students tab removed)
+    const tabOrder = ["dashboard","courses","faculty","infrastructure","generate","view"];
     document.querySelectorAll(".nav-tab").forEach((tab, idx) => {
-        const sectionIds = Object.keys(tabMap);
-        const sectionId  = sectionIds[idx];
-        tab.style.display = allowedTabs.includes(sectionId) ? "" : "none";
+        const sectionId = tabOrder[idx];
+        if (sectionId) {
+            tab.style.display = allowedTabs.includes(sectionId) ? "" : "none";
+        }
     });
  
-    // Hide all write buttons for non-admin roles
+    // Hide write buttons for non-admin roles
     if (!canWrite()) {
         document.querySelectorAll(".btn-primary, .btn-success").forEach(btn => {
-            // Keep export buttons visible for hod
-            if (btn.textContent.includes("Export") || btn.textContent.includes("📄") || btn.textContent.includes("📊")) return;
+            if (btn.textContent.includes("Export") ||
+                btn.textContent.includes("📄") ||
+                btn.textContent.includes("📊")) return;
             btn.style.display = "none";
         });
-        // Also hide assign faculty card
         const assignCard = document.querySelector("#courses .card .card");
         if (assignCard) assignCard.style.display = "none";
     }
  
-    // Update header bar with user info
     renderUserBadge();
- 
-    // For faculty: auto-filter timetable to their schedule
-    if (role === "faculty" && currentUser.linked_id) {
-        // Will be applied when timetable is displayed
-    }
- 
-    // For student: auto-select program and semester in filter
-    if (role === "student" && currentUser.linked_id) {
-        const parts = currentUser.linked_id.split("|");
-        if (parts.length === 2) {
-            const filterProg = document.getElementById("filterProgram");
-            const filterSem  = document.getElementById("filterSemester");
-            if (filterProg) filterProg.value = parts[0];
-            if (filterSem)  filterSem.value  = parts[1];
-        }
-    }
 }
  
 function renderUserBadge() {
@@ -219,7 +192,6 @@ function injectUserMgmtTab() {
                             <option value="admin">Admin</option>
                             <option value="hod">HOD / Principal</option>
                             <option value="faculty">Faculty</option>
-                            <option value="student">Student</option>
                         </select>
                     </div>
                     <div class="form-group" id="linkedIdGroup">
@@ -243,13 +215,10 @@ function updateLinkedIdHint() {
     const hint  = document.getElementById("linkedIdHint");
     const label = document.getElementById("linkedIdLabel");
     if (role === "faculty") {
-        label.textContent = "Faculty ID (must match faculty list)";
-        hint.textContent  = "e.g. FAC001 — links to their teaching schedule";
-    } else if (role === "student") {
-        label.textContent = "Program | Semester";
-        hint.textContent  = "e.g. B.Ed.|1 — filters timetable automatically";
+        label.textContent = "Faculty ID (must match Faculty tab exactly)";
+        hint.textContent  = "e.g. FAC001 — links login to their teaching schedule";
     } else {
-        label.textContent = "Linked ID (optional)";
+        label.textContent = "Linked ID (leave blank for Admin/HOD)";
         hint.textContent  = "";
     }
 }
@@ -265,8 +234,8 @@ async function saveUser() {
         alert("Please fill in username, password, and name.");
         return;
     }
-    if (password.length < 4) {
-        alert("Password must be at least 4 characters.");
+    if (password.length < 6) {
+        alert("Password must be at least 6 characters.");
         return;
     }
  
@@ -282,10 +251,6 @@ async function saveUser() {
             return;
         }
         closeModal("userModal");
- 
-        // Show credentials clearly so admin can share them
-        alert(`✅ User created successfully!\n\nShare these credentials:\n👤 Username: ${username}\n🔑 Password: ${password}\n🎭 Role: ${role}`);
- 
         ["newUsername","newPassword","newName","newLinkedId"].forEach(id => {
             document.getElementById(id).value = "";
         });
@@ -309,37 +274,25 @@ async function loadUsers() {
 function renderUsers() {
     const list = document.getElementById("usersList");
     if (!list) return;
+    if (users.length === 0) {
+        list.innerHTML = `<div class="alert alert-info">No users found.</div>`;
+        return;
+    }
  
     const roleColors = { admin:"#ea5455", hod:"#f7b731", faculty:"#26de81", student:"#45aaf2" };
     const roleEmoji  = { admin:"🛡️", hod:"🎓", faculty:"👨‍🏫", student:"📚" };
  
-    // Instruction banner
-    let html = `
-        <div style="background:#f0f9ff;border:1px solid #bee3f8;border-radius:10px;padding:1rem;margin-bottom:1rem;font-size:0.85rem;color:#2c5282;">
-            <strong>📌 How to create accounts:</strong><br>
-            • <strong>Faculty</strong>: Set Linked ID = the Faculty ID from the Faculty tab (e.g. <code>FAC001</code>)<br>
-            • <strong>Student</strong>: Set Linked ID = Program|Semester (e.g. <code>B.Ed.|1</code>)<br>
-            • <strong>HOD / Admin</strong>: Linked ID can be left blank<br>
-            • After creating a user, share their username &amp; password with them directly.
-        </div>`;
- 
-    if (users.length === 0) {
-        list.innerHTML = html + `<div class="alert alert-info">No users found.</div>`;
-        return;
-    }
- 
-    html += users.map(u => `
+    list.innerHTML = users.map(u => `
         <div class="list-item">
             <div>
                 <strong>${u.username}</strong>
                 &nbsp;
                 <span class="badge" style="background:${roleColors[u.role]}22;color:${roleColors[u.role]};border:1px solid ${roleColors[u.role]}44">
-                    ${roleEmoji[u.role] || "👤"} ${u.role}
+                    ${roleEmoji[u.role]} ${u.role}
                 </span>
                 <br>
                 <small style="color:var(--text-secondary)">
-                    ${u.name}
-                    ${u.linked_id ? `&nbsp;·&nbsp; <strong>Linked ID:</strong> <code>${u.linked_id}</code>` : ""}
+                    ${u.name} ${u.linked_id ? `&nbsp;·&nbsp; Linked: ${u.linked_id}` : ""}
                 </small>
             </div>
             <div class="list-item-actions">
@@ -350,8 +303,6 @@ function renderUsers() {
             </div>
         </div>
     `).join("");
- 
-    list.innerHTML = html;
 }
  
 async function deleteUser(id) {
@@ -372,10 +323,11 @@ function openAddUserModal() {
 // ================= DASHBOARD =================
  
 function updateDashboard() {
-    document.getElementById("totalCourses").innerText  = courses.length;
-    document.getElementById("totalFaculty").innerText  = faculty.length;
-    document.getElementById("totalStudents").innerText = students.length;
-    document.getElementById("totalRooms").innerText    = rooms.length;
+    document.getElementById("totalCourses").innerText = courses.length;
+    document.getElementById("totalFaculty").innerText = faculty.length;
+    document.getElementById("totalRooms").innerText   = rooms.length;
+    const usersEl = document.getElementById("totalUsers");
+    if (usersEl) usersEl.innerText = users.length;
 }
  
 // ================= NAVIGATION =================
@@ -744,16 +696,14 @@ async function generateTimetable() {
         resultDiv.innerHTML += `<div class="alert alert-success">✅ Timetable generated successfully!</div>`;
         generatedTimetable = result.timetable;
  
-        // ── Save timetable to DB so faculty/student/hod can load it ──
+        // Save to DB so faculty/hod can load it without regenerating
         try {
             await fetch(`${API}/save-timetable`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ timetable: result.timetable })
             });
-        } catch (e) {
-            console.warn("Could not save timetable to DB:", e);
-        }
+        } catch(e) { console.warn("Could not save timetable:", e); }
  
         displayTimetable();
         setTimeout(() => showSection("view"), 800);
@@ -1034,87 +984,72 @@ function convertTo12Hour(timeRange) {
 // ================= INIT =================
  
 window.onload = async function () {
-    // 1. Check login — redirect to login.html if no session
     if (!requireLogin()) return;
  
-    // 2. Apply role-based UI (show/hide tabs, buttons)
     applyRoleUI();
- 
-    // 3. Inject user management tab for admin
     injectUserMgmtTab();
  
-    // 4. Load all data from backend — AWAIT so arrays are filled before next step
+    // Load data sequentially so arrays are filled before next step
     try {
-        await loadFacultyFromDB();   // fills faculty[]
-        await loadCoursesFromDB();   // fills courses[]
-        await loadRoomsFromDB();     // fills rooms[]
+        await loadFacultyFromDB();
+        await loadCoursesFromDB();
+        await loadRoomsFromDB();
         loadAssignDropdowns();
         if (currentUser.role === "admin") await loadUsers();
     } catch (e) {
-        console.warn("Could not connect to backend:", e.message);
+        console.warn("Backend connection issue:", e.message);
     }
  
     const role = currentUser.role;
- 
-    // 5. For faculty / student / hod — go to view tab and auto-load timetable
-    if (role === "faculty" || role === "student" || role === "hod") {
+    if (role === "faculty" || role === "hod") {
         showSection("view");
         await autoLoadTimetableForRole();
     }
 };
  
-// ── Loads the saved timetable for faculty / student / hod ────────────────────
+// Loads the saved timetable from DB for faculty and hod
 async function autoLoadTimetableForRole() {
     const display = document.getElementById("timetableDisplay");
     if (!display) return;
  
-    display.innerHTML = `<div class="alert alert-info">⏳ Loading your timetable, please wait...</div>`;
+    display.innerHTML = `<div class="alert alert-info">⏳ Loading timetable...</div>`;
  
     try {
-        // Load the timetable that Admin saved — no regeneration needed
-        const response = await fetch(`${API}/load-timetable`);
+        const res = await fetch(`${API}/load-timetable`);
  
-        if (response.status === 404) {
+        if (res.status === 404) {
             display.innerHTML = `
-                <div class="alert alert-info" style="flex-direction:column;align-items:flex-start;gap:0.5rem;">
-                    <strong>📅 No timetable available yet.</strong>
-                    <span>Ask Admin to generate and save the timetable first.</span>
+                <div class="alert alert-info">
+                    <span>📅</span>
+                    <div><strong>No timetable available yet.</strong><br>
+                    Ask the Admin to generate and save the timetable first.</div>
                 </div>`;
             return;
         }
  
-        if (!response.ok) {
+        if (!res.ok) {
             display.innerHTML = `<div class="alert alert-error">❌ Server error. Ask Admin to check backend.</div>`;
             return;
         }
  
-        const result = await response.json();
+        const result = await res.json();
         generatedTimetable = result.timetable;
  
-        // ── For faculty: verify linked_id maps to a real faculty record ──────
+        // For faculty: verify their linked_id maps to a real faculty record
         if (currentUser.role === "faculty") {
             const facName = getFacultyNameById(currentUser.linked_id);
             if (!facName) {
                 display.innerHTML = `
                     <div class="alert alert-error">
-                        ❌ Your Faculty ID <strong>(${currentUser.linked_id})</strong> was not found
-                        in the faculty list.<br>
-                        Ask Admin to ensure your Linked ID in the Users tab exactly matches
-                        your Faculty ID in the Faculty tab (e.g. FAC001).
+                        <span>❌</span>
+                        <div>
+                            Your Faculty ID <strong>${currentUser.linked_id}</strong> was not found.<br>
+                            Ask Admin to check that your Linked ID in the Users tab exactly
+                            matches your Faculty ID in the Faculty tab (e.g. FAC001).
+                        </div>
                     </div>`;
                 return;
             }
-        }
- 
-        // ── For student: lock filters to their program ────────────────────────
-        if (currentUser.role === "student" && currentUser.linked_id) {
-            const parts = currentUser.linked_id.split("|");
-            if (parts.length >= 1) {
-                const filterProg = document.getElementById("filterProgram");
-                if (filterProg) { filterProg.value = parts[0]; filterProg.disabled = true; }
-            }
-            const filterFac = document.getElementById("filterFaculty");
-            if (filterFac) filterFac.disabled = true;
         }
  
         displayTimetable();
@@ -1122,9 +1057,10 @@ async function autoLoadTimetableForRole() {
     } catch (e) {
         display.innerHTML = `
             <div class="alert alert-error">
-                ❌ Cannot connect to server.<br>
-                Make sure backend is running: <code>uvicorn main:app --reload</code>
+                <span>❌</span>
+                <div>Cannot connect to server.<br>
+                Make sure backend is running: <code>uvicorn main:app --reload</code></div>
             </div>`;
-        console.error("autoLoadTimetableForRole error:", e);
+        console.error(e);
     }
 }

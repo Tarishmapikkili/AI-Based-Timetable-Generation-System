@@ -22,13 +22,13 @@
             --shadow-md: 0 4px 16px rgba(26, 35, 50, 0.12);
             --shadow-lg: 0 8px 32px rgba(26, 35, 50, 0.16);
         }
-
+ 
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-
+ 
         body {
             font-family: 'DM Sans', sans-serif;
             background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
@@ -36,13 +36,13 @@
             line-height: 1.6;
             min-height: 100vh;
         }
-
+ 
         .container {
             max-width: 1400px;
             margin: 0 auto;
             padding: 2rem;
         }
-
+ 
         /* Header */
         .header {
             background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
@@ -54,7 +54,7 @@
             position: relative;
             overflow: hidden;
         }
-
+ 
         .header::before {
             content: '';
             position: absolute;
@@ -65,7 +65,7 @@
             background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
             border-radius: 50%;
         }
-
+ 
         .header h1 {
             font-family: 'Fraunces', serif;
             font-size: 3rem;
@@ -74,14 +74,14 @@
             position: relative;
             z-index: 1;
         }
-
+ 
         .header p {
             font-size: 1.1rem;
             opacity: 0.9;
             position: relative;
             z-index: 1;
         }
-
+ 
         /* Navigation Tabs */
         .nav-tabs {
             display: flex;
@@ -93,7 +93,7 @@
             box-shadow: var(--shadow-sm);
             flex-wrap: wrap;
         }
-
+ 
         .nav-tab {
             flex: 1;
             min-width: 150px;
@@ -108,30 +108,30 @@
             font-size: 0.95rem;
             color: var(--text-secondary);
         }
-
+ 
         .nav-tab:hover {
             border-color: var(--accent);
             color: var(--accent);
             transform: translateY(-2px);
         }
-
+ 
         .nav-tab.active {
             background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
             border-color: var(--accent);
             color: white;
             box-shadow: var(--shadow-md);
         }
-
+ 
         /* Content Sections */
         .content-section {
             display: none;
             animation: fadeIn 0.4s ease;
         }
-
+ 
         .content-section.active {
             display: block;
         }
-
+ 
         @keyframes fadeIn {
             from {
                 opacity: 0;
@@ -142,7 +142,7 @@
                 transform: translateY(0);
             }
         }
-
+ 
         /* Cards */
         .card {
             background: var(--bg-secondary);
@@ -153,12 +153,12 @@
             border: 1px solid var(--border);
             transition: all 0.3s ease;
         }
-
+ 
         .card:hover {
             box-shadow: var(--shadow-md);
             transform: translateY(-2px);
         }
-
+ 
         .card-header {
             display: flex;
             justify-content: space-between;
@@ -167,14 +167,14 @@
             padding-bottom: 1rem;
             border-bottom: 2px solid var(--border);
         }
-
+ 
         .card-title {
             font-family: 'Fraunces', serif;
             font-size: 1.5rem;
             font-weight: 600;
             color: var(--primary);
         }
-
+ 
         /* Form Elements */
         .form-grid {
             display: grid;
@@ -182,19 +182,19 @@
             gap: 1.5rem;
             margin-bottom: 1.5rem;
         }
-
+ 
         .form-group {
             display: flex;
             flex-direction: column;
             gap: 0.5rem;
         }
-
+ 
         .form-label {
             font-weight: 600;
             color: var(--text-primary);
             font-size: 0.9rem;
         }
-
+ 
         .form-input,
         .form-select,
         .form-textarea {
@@ -206,7 +206,7 @@
             transition: all 0.3s ease;
             background: var(--bg-primary);
         }
-
+ 
         .form-input:focus,
         .form-select:focus,
         .form-textarea:focus {
@@ -215,12 +215,12 @@
             background: white;
             box-shadow: 0 0 0 3px rgba(234, 84, 85, 0.1);
         }
-
+ 
         .form-textarea {
             resize: vertical;
             min-height: 100px;
         }
-
+ 
         /* Buttons */
         .btn {
             padding: 0.875rem 1.75rem;
@@ -236,135 +236,135 @@
             gap: 0.5rem;
             justify-content: center;
         }
-
+ 
         .btn-primary {
             background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
             color: white;
             box-shadow: var(--shadow-sm);
         }
-
+ 
         .btn-primary:hover {
             transform: translateY(-2px);
             box-shadow: var(--shadow-md);
         }
-
+ 
         .btn-secondary {
             background: var(--bg-primary);
             color: var(--text-primary);
             border: 2px solid var(--border);
         }
-
+ 
         .btn-secondary:hover {
             border-color: var(--accent);
             color: var(--accent);
         }
-
+ 
         .btn-success {
             background: linear-gradient(135deg, var(--success) 0%, #20bf6b 100%);
             color: white;
         }
-
+ 
         .btn-group {
             display: flex;
             gap: 1rem;
             flex-wrap: wrap;
         }
-
+ 
         /* Data Table */
         .data-table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 1rem;
         }
-
+ 
         .data-table thead {
             background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
             color: white;
         }
-
+ 
         .data-table th,
         .data-table td {
             padding: 1rem;
             text-align: left;
             border-bottom: 1px solid var(--border);
         }
-
+ 
         .data-table th {
             font-weight: 600;
             font-size: 0.9rem;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-
+ 
         .data-table tbody tr {
             transition: all 0.2s ease;
         }
-
+ 
         .data-table tbody tr:hover {
             background: var(--bg-primary);
         }
-
+ 
         .data-table td {
             font-size: 0.95rem;
         }
-
+ 
         /* Timetable Display */
         .timetable-grid {
             overflow-x: auto;
             margin-top: 2rem;
         }
-
+ 
         .timetable {
             width: 100%;
             border-collapse: collapse;
             min-width: 1000px;
         }
-
+ 
         .timetable th,
         .timetable td {
             border: 2px solid var(--border);
             padding: 1rem;
             text-align: center;
         }
-
+ 
         .timetable th {
             background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
             color: white;
             font-weight: 600;
             font-size: 0.9rem;
         }
-
+ 
         .timetable-cell {
             min-height: 80px;
             background: white;
             transition: all 0.2s ease;
         }
-
+ 
         .timetable-cell:hover {
             background: var(--bg-primary);
             transform: scale(1.02);
         }
-
+ 
         .timetable-cell.occupied {
             background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
         }
-
+ 
         .class-info {
             font-size: 0.85rem;
             line-height: 1.4;
         }
-
+ 
         .class-code {
             font-weight: 700;
             color: var(--accent);
             margin-bottom: 0.25rem;
         }
-
+ 
         .class-faculty {
             color: var(--text-secondary);
             font-size: 0.8rem;
         }
-
+ 
         /* Status Badge */
         .badge {
             padding: 0.375rem 0.875rem;
@@ -373,22 +373,22 @@
             font-weight: 600;
             display: inline-block;
         }
-
+ 
         .badge-success {
             background: #d4edda;
             color: #155724;
         }
-
+ 
         .badge-warning {
             background: #fff3cd;
             color: #856404;
         }
-
+ 
         .badge-error {
             background: #f8d7da;
             color: #721c24;
         }
-
+ 
         /* Statistics Cards */
         .stats-grid {
             display: grid;
@@ -396,7 +396,7 @@
             gap: 1.5rem;
             margin-bottom: 2rem;
         }
-
+ 
         .stat-card {
             background: linear-gradient(135deg, white 0%, var(--bg-primary) 100%);
             padding: 1.5rem;
@@ -405,12 +405,12 @@
             border: 1px solid var(--border);
             transition: all 0.3s ease;
         }
-
+ 
         .stat-card:hover {
             transform: translateY(-4px);
             box-shadow: var(--shadow-md);
         }
-
+ 
         .stat-value {
             font-family: 'Fraunces', serif;
             font-size: 2.5rem;
@@ -418,13 +418,13 @@
             color: var(--accent);
             margin-bottom: 0.5rem;
         }
-
+ 
         .stat-label {
             color: var(--text-secondary);
             font-size: 0.9rem;
             font-weight: 500;
         }
-
+ 
         /* Alert Messages */
         .alert {
             padding: 1rem 1.5rem;
@@ -435,7 +435,7 @@
             gap: 1rem;
             animation: slideIn 0.3s ease;
         }
-
+ 
         @keyframes slideIn {
             from {
                 transform: translateX(-20px);
@@ -446,25 +446,25 @@
                 opacity: 1;
             }
         }
-
+ 
         .alert-success {
             background: #d4edda;
             color: #155724;
             border: 2px solid #c3e6cb;
         }
-
+ 
         .alert-error {
             background: #f8d7da;
             color: #721c24;
             border: 2px solid #f5c6cb;
         }
-
+ 
         .alert-info {
             background: #d1ecf1;
             color: #0c5460;
             border: 2px solid #bee5eb;
         }
-
+ 
         /* Loading Spinner */
         .spinner {
             display: inline-block;
@@ -475,11 +475,11 @@
             border-top-color: white;
             animation: spin 0.8s linear infinite;
         }
-
+ 
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
-
+ 
         /* List Items */
         .list-item {
             background: white;
@@ -492,17 +492,17 @@
             align-items: center;
             transition: all 0.2s ease;
         }
-
+ 
         .list-item:hover {
             box-shadow: var(--shadow-sm);
             transform: translateX(4px);
         }
-
+ 
         .list-item-actions {
             display: flex;
             gap: 0.5rem;
         }
-
+ 
         .btn-icon {
             padding: 0.5rem;
             border-radius: 8px;
@@ -512,12 +512,12 @@
             background: var(--bg-primary);
             color: var(--text-primary);
         }
-
+ 
         .btn-icon:hover {
             background: var(--accent);
             color: white;
         }
-
+ 
         /* Modal */
         .modal {
             display: none;
@@ -532,12 +532,12 @@
             align-items: center;
             justify-content: center;
         }
-
+ 
         .modal.active {
             display: flex;
             animation: fadeIn 0.3s ease;
         }
-
+ 
         .modal-content {
             background: white;
             border-radius: 20px;
@@ -549,7 +549,7 @@
             box-shadow: var(--shadow-lg);
             animation: slideUp 0.3s ease;
         }
-
+ 
         @keyframes slideUp {
             from {
                 transform: translateY(30px);
@@ -560,7 +560,7 @@
                 opacity: 1;
             }
         }
-
+ 
         .modal-header {
             display: flex;
             justify-content: space-between;
@@ -569,14 +569,14 @@
             padding-bottom: 1rem;
             border-bottom: 2px solid var(--border);
         }
-
+ 
         .modal-title {
             font-family: 'Fraunces', serif;
             font-size: 1.5rem;
             font-weight: 600;
             color: var(--primary);
         }
-
+ 
         .close-modal {
             background: none;
             border: none;
@@ -585,16 +585,16 @@
             color: var(--text-secondary);
             transition: color 0.2s ease;
         }
-
+ 
         .close-modal:hover {
             color: var(--accent);
         }
-
+ 
         /* Progress Bar */
         .progress-container {
             margin: 2rem 0;
         }
-
+ 
         .progress-bar {
             width: 100%;
             height: 12px;
@@ -603,43 +603,43 @@
             overflow: hidden;
             box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
         }
-
+ 
         .progress-fill {
             height: 100%;
             background: linear-gradient(90deg, var(--accent) 0%, var(--accent-light) 100%);
             border-radius: 20px;
             transition: width 0.5s ease;
         }
-
+ 
         .progress-label {
             margin-top: 0.5rem;
             text-align: center;
             font-weight: 600;
             color: var(--text-secondary);
         }
-
+ 
         /* Responsive Design */
         @media (max-width: 768px) {
             .container {
                 padding: 1rem;
             }
-
+ 
             .header h1 {
                 font-size: 2rem;
             }
-
+ 
             .nav-tabs {
                 flex-direction: column;
             }
-
+ 
             .nav-tab {
                 width: 100%;
             }
-
+ 
             .form-grid {
                 grid-template-columns: 1fr;
             }
-
+ 
             .stats-grid {
                 grid-template-columns: 1fr;
             }
@@ -650,20 +650,19 @@
     <div class="container">
         <div class="header">
             <h1>NEP 2020 Timetable Generator</h1>
-            <p>AI-Powered Intelligent Scheduling System for Multidisciplinary Education Structures</p>
+            <p>Timetable Scheduling System for Multidisciplinary Education Structures</p>
         </div>
-
+ 
         <!-- Navigation -->
         <div class="nav-tabs">
             <button class="nav-tab active" onclick="showSection('dashboard')">Dashboard</button>
             <button class="nav-tab" onclick="showSection('courses')">Courses</button>
             <button class="nav-tab" onclick="showSection('faculty')">Faculty</button>
-            <button class="nav-tab" onclick="showSection('students')">Students</button>
             <button class="nav-tab" onclick="showSection('infrastructure')">Infrastructure</button>
             <button class="nav-tab" onclick="showSection('generate')">Generate Timetable</button>
             <button class="nav-tab" onclick="showSection('view')">View Timetable</button>
         </div>
-
+ 
         <!-- Dashboard Section -->
         <div id="dashboard" class="content-section active">
             <div class="stats-grid">
@@ -676,15 +675,15 @@
                     <div class="stat-label">Faculty Members</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value" id="totalStudents">0</div>
-                    <div class="stat-label">Enrolled Students</div>
-                </div>
-                <div class="stat-card">
                     <div class="stat-value" id="totalRooms">0</div>
                     <div class="stat-label">Available Rooms</div>
                 </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalUsers">0</div>
+                    <div class="stat-label">System Users</div>
+                </div>
             </div>
-
+ 
             <div class="card">
                 <div class="card-header">
                     <h2 class="card-title">System Overview</h2>
@@ -698,17 +697,26 @@
                 <div style="margin-top: 1.5rem;">
                     <h3 style="margin-bottom: 1rem; color: var(--primary);">Key Features</h3>
                     <ul style="list-style: none; padding: 0;">
-                        <li style="padding: 0.75rem; background: var(--bg-primary); margin-bottom: 0.5rem; border-radius: 8px;">✓ AI-powered conflict-free scheduling</li>
+                        <li style="padding: 0.75rem; background: var(--bg-primary); margin-bottom: 0.5rem; border-radius: 8px;">✓ Conflict-free automated scheduling</li>
                         <li style="padding: 0.75rem; background: var(--bg-primary); margin-bottom: 0.5rem; border-radius: 8px;">✓ Multi-program support (B.Ed., M.Ed., FYUP, ITEP)</li>
-                        <li style="padding: 0.75rem; background: var(--bg-primary); margin-bottom: 0.5rem; border-radius: 8px;">✓ Faculty workload optimization</li>
-                        <li style="padding: 0.75rem; background: var(--bg-primary); margin-bottom: 0.5rem; border-radius: 8px;">✓ Room and lab utilization management</li>
+                        <li style="padding: 0.75rem; background: var(--bg-primary); margin-bottom: 0.5rem; border-radius: 8px;">✓ Faculty workload optimization with availability constraints</li>
+                        <li style="padding: 0.75rem; background: var(--bg-primary); margin-bottom: 0.5rem; border-radius: 8px;">✓ Room and lab utilization management (no cross-program conflicts)</li>
                         <li style="padding: 0.75rem; background: var(--bg-primary); margin-bottom: 0.5rem; border-radius: 8px;">✓ Export to PDF and Excel formats</li>
-                        <li style="padding: 0.75rem; background: var(--bg-primary); margin-bottom: 0.5rem; border-radius: 8px;">✓ Real-time editing and scenario simulation</li>
+                        <li style="padding: 0.75rem; background: var(--bg-primary); margin-bottom: 0.5rem; border-radius: 8px;">✓ Role-based access: Admin, HOD, Faculty</li>
+                        <li style="padding: 0.75rem; background: var(--bg-primary); margin-bottom: 0.5rem; border-radius: 8px; display:flex; justify-content:space-between; align-items:center;">
+                            <span>✓ Public student timetable — no login required</span>
+                            <a href="timetable.html" target="_blank"
+                               style="background:var(--accent);color:white;padding:0.3rem 0.9rem;
+                                      border-radius:8px;font-size:0.8rem;font-weight:600;
+                                      text-decoration:none;">
+                                Open →
+                            </a>
+                        </li>
                     </ul>
                 </div>
             </div>
         </div>
-
+ 
         <!-- Courses Section -->
         <div id="courses" class="content-section">
             <div class="card">
@@ -722,26 +730,26 @@
     <div class="card-header">
         <h2 class="card-title">Assign Faculty to Course</h2>
     </div>
-
+ 
     <div class="form-grid">
         <div class="form-group">
             <label class="form-label">Select Course</label>
             <select id="assignCourse" class="form-select"></select>
         </div>
-
+ 
         <div class="form-group">
             <label class="form-label">Select Faculty</label>
             <select id="assignFaculty" class="form-select"></select>
         </div>
     </div>
-
+ 
     <button class="btn btn-success" onclick="assignFacultyToCourse()">
         Assign Faculty
     </button>
 </div>
             </div>
         </div>
-
+ 
         <!-- Faculty Section -->
         <div id="faculty" class="content-section">
             <div class="card">
@@ -753,19 +761,7 @@
                 <div id="facultyList"></div>
             </div>
         </div>
-
-        <!-- Students Section -->
-        <div id="students" class="content-section">
-            <div class="card">
-                <div class="card-header">
-                    <h2 class="card-title">Student Management</h2>
-                    <button class="btn btn-primary" onclick="openAddStudentModal()">+ Add Student</button>
-                </div>
-                
-                <div id="studentsList"></div>
-            </div>
-        </div>
-
+ 
         <!-- Infrastructure Section -->
         <div id="infrastructure" class="content-section">
             <div class="card">
@@ -777,14 +773,14 @@
                 <div id="roomsList"></div>
             </div>
         </div>
-
+ 
         <!-- Generate Timetable Section -->
         <div id="generate" class="content-section">
             <div class="card">
                 <div class="card-header">
                     <h2 class="card-title">Generate Timetable</h2>
                 </div>
-
+ 
                 <div class="form-grid">
                     <div class="form-group">
                         <label class="form-label">Academic Year</label>
@@ -818,12 +814,12 @@
                         </select>
                     </div>
                 </div>
-
+ 
                 <div class="alert alert-info">
                     <span>ℹ️</span>
                     <div>The AI algorithm will automatically resolve conflicts, optimize faculty workload, and maximize resource utilization.</div>
                 </div>
-
+ 
                 <div id="generationProgress" style="display: none;">
                     <div class="progress-container">
                         <div class="progress-bar">
@@ -832,9 +828,9 @@
                         <div class="progress-label" id="progressLabel">Initializing...</div>
                     </div>
                 </div>
-
+ 
                 <div id="generationResult"></div>
-
+ 
                 <div class="btn-group">
                     <button class="btn btn-primary" onclick="generateTimetable()">
                         <span>🤖</span> Generate with AI
@@ -843,7 +839,7 @@
                 </div>
             </div>
         </div>
-
+ 
         <!-- View Timetable Section -->
         <div id="view" class="content-section">
             <div class="card">
@@ -854,7 +850,20 @@
                         <button class="btn btn-secondary" onclick="exportToExcel()">📊 Export Excel</button>
                     </div>
                 </div>
-
+ 
+                <!-- Student public timetable notice -->
+                <div class="alert alert-info" style="margin-bottom:1rem;">
+                    <span>📚</span>
+                    <div>
+                        <strong>For Students:</strong> Share this link —
+                        <a href="timetable.html" target="_blank"
+                           style="color:var(--accent);font-weight:700;">
+                            timetable.html
+                        </a>
+                        — no login needed. Students select their Programme &amp; Semester to view their timetable.
+                    </div>
+                </div>
+ 
                 <div class="form-grid">
                     <div class="form-group">
                         <label class="form-label">Filter by Program</label>
@@ -873,7 +882,7 @@
                         </select>
                     </div>
                 </div>
-
+ 
                 <div id="timetableDisplay" class="timetable-grid">
                     <div class="alert alert-info">
                         <span>📅</span>
@@ -883,7 +892,7 @@
             </div>
         </div>
     </div>
-
+ 
     <!-- Modal for Adding Course -->
     <div id="courseModal" class="modal">
         <div class="modal-content">
@@ -951,7 +960,7 @@
             </div>
         </div>
     </div>
-
+ 
     <!-- Modal for Adding Faculty -->
     <div id="facultyModal" class="modal">
         <div class="modal-content">
@@ -1011,61 +1020,7 @@
             </div>
         </div>
     </div>
-
-    <!-- Modal for Adding Student -->
-    <div id="studentModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">Add Student</h3>
-                <button class="close-modal" onclick="closeModal('studentModal')">&times;</button>
-            </div>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label class="form-label">Student ID</label>
-                    <input type="text" class="form-input" id="studentId" placeholder="STU001">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Full Name</label>
-                    <input type="text" class="form-input" id="studentName" placeholder="Jane Smith">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Email</label>
-                    <input type="email" class="form-input" id="studentEmail" placeholder="jane.smith@student.edu">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Program</label>
-                    <select class="form-select" id="studentProgram">
-                        <option>B.Ed.</option>
-                        <option>M.Ed.</option>
-                        <option>FYUP</option>
-                        <option>ITEP</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Current Semester</label>
-                    <select class="form-select" id="studentSemester">
-                        <option>1</option>
-                        <option>2</option>
-                        <option>3</option>
-                        <option>4</option>
-                        <option>5</option>
-                        <option>6</option>
-                        <option>7</option>
-                        <option>8</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Total Credits</label>
-                    <input type="number" class="form-input" id="studentCredits" placeholder="20">
-                </div>
-            </div>
-            <div class="btn-group" style="margin-top: 1.5rem;">
-                <button class="btn btn-primary" onclick="saveStudent()">Save Student</button>
-                <button class="btn btn-secondary" onclick="closeModal('studentModal')">Cancel</button>
-            </div>
-        </div>
-    </div>
-
+ 
     <!-- Modal for Adding Room -->
     <div id="roomModal" class="modal">
         <div class="modal-content">
@@ -1123,6 +1078,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="app.js"></script>
-
+ 
 </body>
 </html>

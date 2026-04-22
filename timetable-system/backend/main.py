@@ -7,13 +7,18 @@ from pydantic import BaseModel
 from typing import List, Optional
  
 app = FastAPI()
- def hash_password(password: str) -> str:
+ 
+# ================= DATABASE SETUP =================
+ 
+def hash_password(password: str) -> str:
     """Simple SHA-256 hash. For production use bcrypt."""
     return hashlib.sha256(password.encode()).hexdigest()
  
 def init_db():
     conn = sqlite3.connect("timetable.db")
     cursor = conn.cursor()
+ 
+    # ── Users table ──────────────────────────────────────────────────────────
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -24,18 +29,21 @@ def init_db():
             linked_id TEXT               -- faculty_id or student program+semester info
         )
     """)
+ 
+    # ── Seed default accounts (only if table is empty) ───────────────────────
     cursor.execute("SELECT COUNT(*) FROM users")
     if cursor.fetchone()[0] == 0:
         seed_users = [
-            ("admin",    hash_password("admin123"),  "admin",   "Administrator", None),
+            ("admin",    hash_password("admin123"),  "admin",   "Administrator",      None),
             ("hod",      hash_password("hod123"),    "hod",     "Dr. HOD / Principal", None),
-            ("faculty1", hash_password("fac123"),    "faculty", "Dr. Faculty One", "FAC001"),
-            ("student1", hash_password("stu123"),    "student", "Student One", "B.Ed.|1"),
+            ("faculty1", hash_password("fac123"),    "faculty", "Dr. Faculty One",     "FAC001"),
         ]
         cursor.executemany(
             "INSERT INTO users (username, password_hash, role, name, linked_id) VALUES (?,?,?,?,?)",
             seed_users
         )
+ 
+    # ── Faculty table ────────────────────────────────────────────────────────
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS faculty (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -50,6 +58,8 @@ def init_db():
             cursor.execute(f"ALTER TABLE faculty ADD COLUMN {col} TEXT DEFAULT {defval}")
         except:
             pass
+ 
+    # ── Courses table ────────────────────────────────────────────────────────
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS courses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -66,6 +76,8 @@ def init_db():
             cursor.execute(f"ALTER TABLE courses ADD COLUMN {col} INTEGER DEFAULT {defval}")
         except:
             pass
+ 
+    # ── Rooms table ──────────────────────────────────────────────────────────
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS rooms (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -73,6 +85,8 @@ def init_db():
             room_type TEXT
         )
     """)
+ 
+    # ── Course-Faculty mapping ────────────────────────────────────────────────
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS course_faculty (
             course_code TEXT,
@@ -80,7 +94,8 @@ def init_db():
             PRIMARY KEY (course_code, faculty_id)
         )
     """)
-
+ 
+    # ── Saved timetable — persists last generated timetable for all roles ─────
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS saved_timetable (
             id INTEGER PRIMARY KEY,
@@ -94,6 +109,8 @@ def init_db():
  
 init_db()
  
+# ================= ENABLE CORS =================
+ 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -102,6 +119,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
  
+# ================= MODELS =================
+ 
 class LoginRequest(BaseModel):
     username: str
     password: str
@@ -109,9 +128,9 @@ class LoginRequest(BaseModel):
 class NewUserRequest(BaseModel):
     username: str
     password: str
-    role: str
+    role: str   # 'admin' | 'hod' | 'faculty'
     name: str
-    linked_id: Optional[str] = None
+    linked_id: Optional[str] = None  # faculty_id for faculty role, blank for others
  
 class Course(BaseModel):
     code: str
@@ -136,8 +155,9 @@ class TimetableRequest(BaseModel):
     faculty: List[Faculty]
     rooms: List[Room]
     program: str
-    semester: str = "all"  
+    semester: str = "all"  # "all" = include every semester (used by auto-load for faculty/student/hod)
  
+# ================= ROOM TYPE HELPERS =================
  
 LAB_TYPES = {"laboratory", "lab", "computer lab", "science lab"}
  
@@ -146,6 +166,8 @@ def is_lab_room(room: Room) -> bool:
  
 def is_classroom(room: Room) -> bool:
     return not is_lab_room(room)
+ 
+# ================= AUTH APIs =================
  
 @app.post("/login")
 def login(data: LoginRequest):
@@ -163,9 +185,9 @@ def login(data: LoginRequest):
  
     return {
         "username":  row[0],
-        "role":      row[1], 
+        "role":      row[1],   # admin | hod | faculty | student
         "name":      row[2],
-        "linked_id": row[3]  
+        "linked_id": row[3]    # faculty_id or "program|semester" for students
     }
  
 @app.get("/users")
@@ -201,6 +223,8 @@ def delete_user(user_id: int):
     conn.commit()
     conn.close()
     return {"message": "User deleted"}
+ 
+# ================= FACULTY APIs =================
  
 @app.post("/add-faculty")
 def add_faculty(data: dict):
@@ -246,6 +270,8 @@ def delete_faculty(faculty_id: str):
     conn.commit()
     conn.close()
     return {"message": "Faculty deleted"}
+ 
+# ================= COURSE APIs =================
  
 @app.post("/add-course")
 def add_course(data: dict):
@@ -320,7 +346,7 @@ def get_course_faculty(course_code: str):
     conn.close()
     return {"faculty_ids": [r[0] for r in rows]}
  
-
+# ================= ROOM APIs =================
  
 @app.post("/add-room")
 def add_room(data: dict):
@@ -353,7 +379,7 @@ def delete_room(room_number: str):
     conn.close()
     return {"message": "Room deleted"}
  
-
+# ================= TIMETABLE GENERATION =================
  
 @app.post("/generate")
 def generate_timetable(data: TimetableRequest):
@@ -633,32 +659,38 @@ def generate_timetable(data: TimetableRequest):
     return {"timetable": final_timetable, "warnings": warnings}
  
  
-# ── Save generated timetable so other roles can load it ──────────────────────
+# ================= SAVE / LOAD TIMETABLE =================
+ 
 @app.post("/save-timetable")
 def save_timetable(data: dict):
+    """Called by admin after generating — persists timetable so other roles can load it."""
     conn = sqlite3.connect("timetable.db")
     cursor = conn.cursor()
-    # Only keep one saved timetable (replace each time admin generates)
-    cursor.execute("DELETE FROM saved_timetable")
+    cursor.execute("DELETE FROM saved_timetable")   # keep only latest
     cursor.execute(
         "INSERT INTO saved_timetable (timetable_json) VALUES (?)",
         (json.dumps(data.get("timetable", {})),)
     )
     conn.commit()
     conn.close()
-    return {"message": "Timetable saved"}
+    return {"message": "Timetable saved successfully"}
  
  
-# ── Load the last saved timetable ────────────────────────────────────────────
 @app.get("/load-timetable")
 def load_timetable():
+    """Used by faculty/hod and public page to load the last saved timetable."""
     conn = sqlite3.connect("timetable.db")
     cursor = conn.cursor()
-    cursor.execute("SELECT timetable_json, saved_at FROM saved_timetable ORDER BY id DESC LIMIT 1")
+    cursor.execute(
+        "SELECT timetable_json, saved_at FROM saved_timetable ORDER BY id DESC LIMIT 1"
+    )
     row = cursor.fetchone()
     conn.close()
     if not row:
-        raise HTTPException(status_code=404, detail="No timetable saved yet. Ask Admin to generate one.")
+        raise HTTPException(
+            status_code=404,
+            detail="No timetable saved yet. Ask Admin to generate and save one."
+        )
     return {
         "timetable": json.loads(row[0]),
         "saved_at":  row[1]

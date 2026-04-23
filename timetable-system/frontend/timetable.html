@@ -30,7 +30,6 @@
             min-height: 100vh;
         }
  
-        /* ── Header ── */
         .header {
             background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
             color: white;
@@ -66,14 +65,12 @@
             margin-bottom:1rem; position:relative; z-index:1;
         }
  
-        /* ── Container ── */
         .container {
             max-width: 1400px;
             margin: 0 auto;
             padding: 2rem;
         }
  
-        /* ── Filter card ── */
         .filter-card {
             background: var(--white);
             border-radius: 16px;
@@ -124,7 +121,6 @@
             box-shadow:0 6px 20px rgba(234,84,85,0.4);
         }
  
-        /* ── Export buttons ── */
         .export-row {
             display:flex; gap:0.75rem; flex-wrap:wrap;
             margin-bottom:1.5rem;
@@ -140,7 +136,6 @@
         }
         .btn-export:hover { border-color:var(--accent); color:var(--accent); }
  
-        /* ── Timetable ── */
         .timetable-wrap {
             overflow-x: auto;
             background: var(--white);
@@ -166,7 +161,6 @@
         }
         .cell-empty { background:#fafafa; min-height:70px; }
  
-        /* ── Entry card inside cell ── */
         .entry {
             border-radius:8px; padding:6px 8px;
             margin-bottom:3px; text-align:left;
@@ -184,13 +178,11 @@
         .entry-name  { font-size:0.75rem; color:#333; }
         .entry-meta  { font-size:0.7rem; color:var(--muted); margin-top:2px; }
  
-        /* ── Break rows ── */
         .break-row td {
             font-weight:700; text-align:center;
             font-size:0.85rem; padding:0.6rem;
         }
  
-        /* ── Status / alert ── */
         .alert {
             padding:1rem 1.25rem; border-radius:12px;
             font-size:0.9rem; font-weight:500;
@@ -201,7 +193,6 @@
         .alert-error   { background:#f8d7da; color:#721c24; border:2px solid #f5c6cb; }
         .alert-success { background:#d4edda; color:#155724; border:2px solid #c3e6cb; }
  
-        /* ── Footer ── */
         .footer {
             text-align:center; padding:2rem;
             color:var(--muted); font-size:0.8rem;
@@ -267,14 +258,14 @@
     <!-- ── Status ── -->
     <div id="statusBox"></div>
  
-    <!-- ── Export buttons (hidden until timetable loads) ── -->
+    
     <div class="export-row" id="exportRow" style="display:none;">
         <button class="btn-export" onclick="exportPDF()">📄 Export PDF</button>
         <button class="btn-export" onclick="exportExcel()">📊 Export Excel</button>
         <button class="btn-export" onclick="window.print()">🖨️ Print</button>
     </div>
  
-    <!-- ── Timetable display ── -->
+    
     <div id="timetableWrap" style="display:none;" class="timetable-wrap">
         <div id="timetableOut"></div>
     </div>
@@ -299,11 +290,11 @@ const BREAK_AFTER = {
     5:"☕ Short Break (3:10 – 3:20 PM)"
 };
  
-let fullTimetable  = null;  // raw from backend
-let filteredTable  = null;  // after applying user's filter
+let fullTimetable  = null;  
+let filteredTable  = null; 
 let savedAt        = null;
  
-// ── Load saved timetable on page open ────────────────────────────────────────
+
 window.onload = async function () {
     showStatus("info", "⏳ Loading timetable from server...");
     try {
@@ -322,10 +313,10 @@ window.onload = async function () {
         fullTimetable = data.timetable;
         savedAt       = data.saved_at;
  
-        // Populate faculty dropdown
+       
         populateFacultyDropdown();
  
-        // Auto-apply filters and show
+        
         applyFilters();
  
     } catch (e) {
@@ -335,7 +326,7 @@ window.onload = async function () {
     }
 };
  
-// ── Populate faculty dropdown from timetable data ────────────────────────────
+
 function populateFacultyDropdown() {
     if (!fullTimetable) return;
     const names = new Set();
@@ -354,7 +345,7 @@ function populateFacultyDropdown() {
     });
 }
  
-// ── Apply all three filters and render ───────────────────────────────────────
+
 function applyFilters() {
     if (!fullTimetable) return;
  
@@ -362,7 +353,7 @@ function applyFilters() {
     const sem     = document.getElementById("selSemester").value;
     const facName = document.getElementById("selFaculty").value;
  
-    // Build filtered version
+   
     filteredTable = {};
     const days  = Object.keys(fullTimetable);
     const slots = Object.keys(fullTimetable[days[0]]);
@@ -387,12 +378,12 @@ function applyFilters() {
     renderTimetable();
 }
  
-// ── Render the filtered timetable ────────────────────────────────────────────
+
 function renderTimetable() {
     const days  = Object.keys(filteredTable);
     const slots = Object.keys(filteredTable[days[0]]);
  
-    // Check if anything to show
+    
     let hasData = false;
     days.forEach(day => slots.forEach(slot => {
         if (filteredTable[day][slot] !== null) hasData = true;
@@ -439,7 +430,7 @@ function renderTimetable() {
     document.getElementById("exportRow").style.display     = "flex";
 }
  
-// ── Build a <td> for one slot ─────────────────────────────────────────────────
+
 function buildTd(cellData) {
     const cells = !cellData ? [] : Array.isArray(cellData) ? cellData : [cellData];
     if (cells.length === 0) return `<td class="cell-empty"></td>`;
@@ -465,13 +456,13 @@ function buildTd(cellData) {
     return `<td style="vertical-align:top;padding:5px;">${inner}</td>`;
 }
  
-// ── Status display ────────────────────────────────────────────────────────────
+
 function showStatus(type, msg) {
     document.getElementById("statusBox").innerHTML =
         `<div class="alert alert-${type}">${msg}</div>`;
 }
  
-// ── Time format helper ────────────────────────────────────────────────────────
+
 function to12Hour(range) {
     function convert(t) {
         let [h, m] = t.split(":");
@@ -484,7 +475,7 @@ function to12Hour(range) {
     return `${convert(s)} – ${convert(e)}`;
 }
  
-// ── Export PDF ────────────────────────────────────────────────────────────────
+
 function exportPDF() {
     if (!filteredTable) return;
     const { jsPDF } = window.jspdf;
@@ -527,7 +518,7 @@ function exportPDF() {
     doc.save("Timetable.pdf");
 }
  
-// ── Export Excel ──────────────────────────────────────────────────────────────
+
 function exportExcel() {
     if (!filteredTable) return;
     const days  = Object.keys(filteredTable);

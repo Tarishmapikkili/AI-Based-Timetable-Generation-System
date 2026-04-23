@@ -8,8 +8,6 @@ from typing import List, Optional
  
 app = FastAPI()
  
-# ================= DATABASE SETUP =================
- 
 def hash_password(password: str) -> str:
     """Simple SHA-256 hash. For production use bcrypt."""
     return hashlib.sha256(password.encode()).hexdigest()
@@ -18,7 +16,6 @@ def init_db():
     conn = sqlite3.connect("timetable.db")
     cursor = conn.cursor()
  
-    # ── Users table ──────────────────────────────────────────────────────────
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -29,8 +26,6 @@ def init_db():
             linked_id TEXT               -- faculty_id or student program+semester info
         )
     """)
- 
-    # ── Seed default accounts (only if table is empty) ───────────────────────
     cursor.execute("SELECT COUNT(*) FROM users")
     if cursor.fetchone()[0] == 0:
         seed_users = [
@@ -43,7 +38,6 @@ def init_db():
             seed_users
         )
  
-    # ── Faculty table ────────────────────────────────────────────────────────
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS faculty (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -59,7 +53,6 @@ def init_db():
         except:
             pass
  
-    # ── Courses table ────────────────────────────────────────────────────────
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS courses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -77,7 +70,6 @@ def init_db():
         except:
             pass
  
-    # ── Rooms table ──────────────────────────────────────────────────────────
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS rooms (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -86,7 +78,6 @@ def init_db():
         )
     """)
  
-    # ── Course-Faculty mapping ────────────────────────────────────────────────
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS course_faculty (
             course_code TEXT,
@@ -95,7 +86,6 @@ def init_db():
         )
     """)
  
-    # ── Saved timetable — persists last generated timetable for all roles ─────
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS saved_timetable (
             id INTEGER PRIMARY KEY,
@@ -109,8 +99,6 @@ def init_db():
  
 init_db()
  
-# ================= ENABLE CORS =================
- 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -119,8 +107,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
  
-# ================= MODELS =================
- 
 class LoginRequest(BaseModel):
     username: str
     password: str
@@ -128,9 +114,9 @@ class LoginRequest(BaseModel):
 class NewUserRequest(BaseModel):
     username: str
     password: str
-    role: str   # 'admin' | 'hod' | 'faculty'
+    role: str   
     name: str
-    linked_id: Optional[str] = None  # faculty_id for faculty role, blank for others
+    linked_id: Optional[str] = None  
  
 class Course(BaseModel):
     code: str
@@ -155,9 +141,7 @@ class TimetableRequest(BaseModel):
     faculty: List[Faculty]
     rooms: List[Room]
     program: str
-    semester: str = "all"  # "all" = include every semester (used by auto-load for faculty/student/hod)
- 
-# ================= ROOM TYPE HELPERS =================
+    semester: str = "all"  
  
 LAB_TYPES = {"laboratory", "lab", "computer lab", "science lab"}
  
@@ -166,8 +150,6 @@ def is_lab_room(room: Room) -> bool:
  
 def is_classroom(room: Room) -> bool:
     return not is_lab_room(room)
- 
-# ================= AUTH APIs =================
  
 @app.post("/login")
 def login(data: LoginRequest):
@@ -185,9 +167,9 @@ def login(data: LoginRequest):
  
     return {
         "username":  row[0],
-        "role":      row[1],   # admin | hod | faculty | student
+        "role":      row[1],   
         "name":      row[2],
-        "linked_id": row[3]    # faculty_id or "program|semester" for students
+        "linked_id": row[3]    
     }
  
 @app.get("/users")
@@ -223,8 +205,6 @@ def delete_user(user_id: int):
     conn.commit()
     conn.close()
     return {"message": "User deleted"}
- 
-# ================= FACULTY APIs =================
  
 @app.post("/add-faculty")
 def add_faculty(data: dict):
@@ -270,8 +250,6 @@ def delete_faculty(faculty_id: str):
     conn.commit()
     conn.close()
     return {"message": "Faculty deleted"}
- 
-# ================= COURSE APIs =================
  
 @app.post("/add-course")
 def add_course(data: dict):
@@ -346,8 +324,6 @@ def get_course_faculty(course_code: str):
     conn.close()
     return {"faculty_ids": [r[0] for r in rows]}
  
-# ================= ROOM APIs =================
- 
 @app.post("/add-room")
 def add_room(data: dict):
     conn = sqlite3.connect("timetable.db")
@@ -379,8 +355,6 @@ def delete_room(room_number: str):
     conn.close()
     return {"message": "Room deleted"}
  
-# ================= TIMETABLE GENERATION =================
- 
 @app.post("/generate")
 def generate_timetable(data: TimetableRequest):
  
@@ -396,12 +370,10 @@ def generate_timetable(data: TimetableRequest):
         "15:20-16:10"
     ]
  
-    # Valid consecutive lab pairs — do not cross break/lunch boundaries
     LAB_PAIRS = [(0, 1), (2, 3), (4, 5)]
  
     warnings = []
  
-    # ── Classify rooms ───────────────────────────────────────────────────────
     lab_rooms   = [r for r in data.rooms if is_lab_room(r)]
     class_rooms = [r for r in data.rooms if is_classroom(r)]
  
@@ -410,8 +382,6 @@ def generate_timetable(data: TimetableRequest):
     if not class_rooms:
         warnings.append("No Classroom rooms found. Add rooms with type 'Classroom' for theory courses.")
  
-    # ── Filter courses by program & semester ─────────────────────────────────
-    # semester="all" → include every semester (used when faculty/student/hod auto-loads)
     filtered_courses = [
         c for c in data.courses
         if (data.program == "All Programs" or c.program == data.program)
@@ -422,30 +392,18 @@ def generate_timetable(data: TimetableRequest):
     if not filtered_courses:
         return {"timetable": empty_tt, "warnings": warnings + ["No courses found for selected program/semester."]}
  
-    # ── Identify all distinct programs in this batch ─────────────────────────
     all_programs = list(dict.fromkeys(c.program for c in filtered_courses))
- 
-    # ── Per-program timetable grids ──────────────────────────────────────────
-    # KEY INSIGHT: Each program has its OWN grid.
-    # This means FYUP filling Monday-9:00 does NOT block B.Ed. from Monday-9:00
-    # in a DIFFERENT room. The shared room_busy below enforces the actual constraint.
     prog_tt = {
         prog: {day: {slot: None for slot in THEORY_SLOTS} for day in ALL_DAYS}
         for prog in all_programs
     }
  
-    # ── SHARED room tracker — the only thing preventing double-booking ────────
-    # room_busy[room_number][day] = set of slot strings currently occupied
-    # This is shared across ALL programs so two programs can never get the same
-    # room at the same time, regardless of which program booked it first.
     room_busy = {r.number: {day: set() for day in ALL_DAYS} for r in data.rooms}
  
-    # ── Faculty trackers (also shared — a teacher can't be in two places) ─────
     faculty_map   = {f.id: f for f in data.faculty}
     faculty_hours = {f.id: 0 for f in data.faculty}
     faculty_busy  = {f.id: {day: set() for day in ALL_DAYS} for f in data.faculty}
  
-    # ── Load course→faculty from DB ──────────────────────────────────────────
     conn = sqlite3.connect("timetable.db")
     cursor = conn.cursor()
     course_faculty_map = {}
@@ -459,7 +417,6 @@ def generate_timetable(data: TimetableRequest):
             warnings.append(f"No faculty assigned to {course.code} — skipped.")
     conn.close()
  
-    # ── Room picker: checks room_busy (shared) for BOTH slots atomically ──────
     def pick_room(pool: list, day: str, slot1: str, slot2: str = None) -> Optional[Room]:
         """
         Returns the least-used free room from pool.
@@ -475,8 +432,6 @@ def generate_timetable(data: TimetableRequest):
                 continue
             return r
         return None
- 
-    # ── Place a slot: updates prog_tt + room_busy + faculty trackers ──────────
     def place(prog: str, day: str, slot: str, course, fac, room: Room, kind: str):
         prog_tt[prog][day][slot] = {
             "course":  course.code,
@@ -487,20 +442,9 @@ def generate_timetable(data: TimetableRequest):
             "program": prog
         }
         faculty_busy[fac.id][day].add(slot)
-        room_busy[room.number][day].add(slot)   # ← marks room globally occupied
+        room_busy[room.number][day].add(slot) 
         faculty_hours[fac.id] += 1
  
-    # ════════════════════════════════════════════════════════════════════════
-    # STEP 1 — LAB sessions
-    #
-    # For each lab course:
-    #   1. Check faculty is free for BOTH consecutive slots
-    #   2. Check THIS program's own grid is free for both slots
-    #   3. pick_room checks room_busy (SHARED) for BOTH slots atomically
-    #      → guarantees no other program already has that room at either slot
-    #   4. place() immediately marks BOTH slots in room_busy
-    #      → guarantees next program's pick_room will see it as occupied
-    # ════════════════════════════════════════════════════════════════════════
     for course in filtered_courses:
         if course.practicalHours <= 0:
             continue
@@ -530,27 +474,20 @@ def generate_timetable(data: TimetableRequest):
             for (i1, i2) in LAB_PAIRS:
                 s1, s2 = THEORY_SLOTS[i1], THEORY_SLOTS[i2]
  
-                # ① Faculty free for both periods?
                 if s1 in faculty_busy[fac.id][day] or s2 in faculty_busy[fac.id][day]:
                     continue
  
-                # ② This program's own grid free for both periods?
-                #    (does NOT check other programs — they have separate grids)
                 if prog_tt[prog][day][s1] is not None or prog_tt[prog][day][s2] is not None:
                     continue
  
-                # ③ Find a lab room free for BOTH slots across ALL programs
-                #    pick_room checks room_busy which is shared → real conflict prevention
                 room = pick_room(lab_rooms, day, s1, slot2=s2)
                 if room is None:
-                    # All lab rooms are occupied at this pair by some program → try next pair
                     continue
  
-                # ④ Place both slots atomically — room_busy updated immediately
                 place(prog, day, s1, course, fac, room, "Lab")
                 place(prog, day, s2, course, fac, room, "Lab (contd.)")
                 placed_labs += 1
-                break  # one lab session per day per course
+                break  
  
         if placed_labs < sessions_needed:
             warnings.append(
@@ -558,12 +495,6 @@ def generate_timetable(data: TimetableRequest):
                 f"Add more Laboratory rooms to prevent cross-program conflicts."
             )
  
-    # ════════════════════════════════════════════════════════════════════════
-    # STEP 2 — THEORY sessions
-    #
-    # Same principle: per-program grid for "already occupied by this program"
-    # but room_busy is shared to prevent two programs using the same classroom.
-    # ════════════════════════════════════════════════════════════════════════
     for course in filtered_courses:
         if course.theoryHours <= 0:
             continue
@@ -596,8 +527,6 @@ def generate_timetable(data: TimetableRequest):
             if faculty_hours[fac.id] + 1 > fac.maxHours:
                 warnings.append(f"{fac.name} hit max hours — theory for {course.code} skipped.")
                 break
- 
-            # No same theory course twice in same day (per this program's grid)
             already_today = any(
                 prog_tt[prog][day][sl] is not None
                 and prog_tt[prog][day][sl]["course"] == course.code
@@ -610,16 +539,13 @@ def generate_timetable(data: TimetableRequest):
  
             slot_placed = False
             for slot in THEORY_SLOTS:
-                # Skip if this program already has a class at this slot
                 if prog_tt[prog][day][slot] is not None:
                     continue
-                # Skip if faculty is busy at this slot (teaching another program)
                 if slot in faculty_busy[fac.id][day]:
                     continue
-                # Find a classroom free across ALL programs
                 room = pick_room(class_rooms, day, slot)
                 if room is None:
-                    continue  # all classrooms occupied at this slot
+                    continue  
  
                 place(prog, day, slot, course, fac, room, "Theory")
                 placed += 1
@@ -636,9 +562,6 @@ def generate_timetable(data: TimetableRequest):
                 f"Add more Classroom rooms to prevent cross-program conflicts."
             )
  
-    # ── Merge per-program grids into one combined timetable ──────────────────
-    # Each cell can now hold MULTIPLE entries (one per program) at the same slot.
-    # Frontend receives: timetable[day][slot] = single cell | list of cells | null
     final_timetable = {day: {slot: None for slot in THEORY_SLOTS} for day in ALL_DAYS}
  
     for day in ALL_DAYS:
@@ -653,20 +576,17 @@ def generate_timetable(data: TimetableRequest):
             elif len(entries) == 1:
                 final_timetable[day][slot] = entries[0]
             else:
-                # Multiple programs at this slot — guaranteed DIFFERENT rooms
+                
                 final_timetable[day][slot] = entries
  
     return {"timetable": final_timetable, "warnings": warnings}
- 
- 
-# ================= SAVE / LOAD TIMETABLE =================
  
 @app.post("/save-timetable")
 def save_timetable(data: dict):
     """Called by admin after generating — persists timetable so other roles can load it."""
     conn = sqlite3.connect("timetable.db")
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM saved_timetable")   # keep only latest
+    cursor.execute("DELETE FROM saved_timetable")   
     cursor.execute(
         "INSERT INTO saved_timetable (timetable_json) VALUES (?)",
         (json.dumps(data.get("timetable", {})),)

@@ -15,7 +15,7 @@ To develop a software-based, AI-assisted timetable generation system aligned wit
   - Timetable output generation
 
 ## Technologies
-- Frontend: HTML, CSS, JavaScript, React.js
+- Frontend: HTML, CSS, JavaScript
 - Backend: Python (FastAPI)
 - Scheduling Logic: Constraint-based optimization
 - Tools: VS Code, Git
